@@ -46,6 +46,11 @@ template <> constexpr inline auto SimulationWidget::qt_create_metaobjectdata<qt_
         "addPrey",
         "count",
         "addPredator",
+        "setAddPreyMode",
+        "setAddPredatorMode",
+        "zoomIn",
+        "zoomOut",
+        "resetZoom",
         "updateSimulation"
     };
 
@@ -68,8 +73,18 @@ template <> constexpr inline auto SimulationWidget::qt_create_metaobjectdata<qt_
         }}),
         // Slot 'addPredator'
         QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPublic | QMC::MethodCloned, QMetaType::Void),
+        // Slot 'setAddPreyMode'
+        QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPublic, QMetaType::Void),
+        // Slot 'setAddPredatorMode'
+        QtMocHelpers::SlotData<void()>(9, 2, QMC::AccessPublic, QMetaType::Void),
+        // Slot 'zoomIn'
+        QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPublic, QMetaType::Void),
+        // Slot 'zoomOut'
+        QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPublic, QMetaType::Void),
+        // Slot 'resetZoom'
+        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPublic, QMetaType::Void),
         // Slot 'updateSimulation'
-        QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(13, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -79,7 +94,7 @@ template <> constexpr inline auto SimulationWidget::qt_create_metaobjectdata<qt_
             qt_methods, qt_properties, qt_enums);
 }
 Q_CONSTINIT const QMetaObject SimulationWidget::staticMetaObject = { {
-    QMetaObject::SuperData::link<QWidget::staticMetaObject>(),
+    QMetaObject::SuperData::link<QGraphicsView::staticMetaObject>(),
     qt_staticMetaObjectStaticContent<qt_meta_tag_ZN16SimulationWidgetE_t>.stringdata,
     qt_staticMetaObjectStaticContent<qt_meta_tag_ZN16SimulationWidgetE_t>.data,
     qt_static_metacall,
@@ -100,7 +115,12 @@ void SimulationWidget::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
         case 4: _t->addPrey(); break;
         case 5: _t->addPredator((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
         case 6: _t->addPredator(); break;
-        case 7: _t->updateSimulation(); break;
+        case 7: _t->setAddPreyMode(); break;
+        case 8: _t->setAddPredatorMode(); break;
+        case 9: _t->zoomIn(); break;
+        case 10: _t->zoomOut(); break;
+        case 11: _t->resetZoom(); break;
+        case 12: _t->updateSimulation(); break;
         default: ;
         }
     }
@@ -116,23 +136,23 @@ void *SimulationWidget::qt_metacast(const char *_clname)
     if (!_clname) return nullptr;
     if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN16SimulationWidgetE_t>.strings))
         return static_cast<void*>(this);
-    return QWidget::qt_metacast(_clname);
+    return QGraphicsView::qt_metacast(_clname);
 }
 
 int SimulationWidget::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
 {
-    _id = QWidget::qt_metacall(_c, _id, _a);
+    _id = QGraphicsView::qt_metacall(_c, _id, _a);
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 8)
+        if (_id < 13)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 8;
+        _id -= 13;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 8)
+        if (_id < 13)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 8;
+        _id -= 13;
     }
     return _id;
 }

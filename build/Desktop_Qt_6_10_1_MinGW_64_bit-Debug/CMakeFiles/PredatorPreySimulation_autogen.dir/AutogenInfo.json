@@ -381,6 +381,12 @@
 	"HEADERS" : 
 	[
 		[
+			"C:/Users/temky/Documents/Evolution/bush.h",
+			"MU",
+			"EWIEGA46WW/moc_bush.cpp",
+			null
+		],
+		[
 			"C:/Users/temky/Documents/Evolution/mainwindow.h",
 			"MU",
 			"EWIEGA46WW/moc_mainwindow.cpp",
@@ -414,6 +420,12 @@
 			"C:/Users/temky/Documents/Evolution/simulationwidgets.h",
 			"MU",
 			"EWIEGA46WW/moc_simulationwidgets.cpp",
+			null
+		],
+		[
+			"C:/Users/temky/Documents/Evolution/water.h",
+			"MU",
+			"EWIEGA46WW/moc_water.cpp",
 			null
 		]
 	],
@@ -494,6 +506,7 @@
 	"SETTINGS_FILE" : "C:/Users/temky/Documents/Evolution/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/PredatorPreySimulation_autogen.dir/AutogenUsed.txt",
 	"SOURCES" : 
 	[
+		[ "C:/Users/temky/Documents/Evolution/bush.cpp", "MU", null ],
 		[ "C:/Users/temky/Documents/Evolution/main.cpp", "MU", null ],
 		[ "C:/Users/temky/Documents/Evolution/mainwindow.cpp", "MU", null ],
 		[ "C:/Users/temky/Documents/Evolution/organism.cpp", "MU", null ],
@@ -504,7 +517,8 @@
 			"C:/Users/temky/Documents/Evolution/simulationwidgets.cpp",
 			"MU",
 			null
-		]
+		],
+		[ "C:/Users/temky/Documents/Evolution/water.cpp", "MU", null ]
 	],
 	"UIC_OPTIONS" : [],
 	"UIC_SEARCH_PATHS" : [],

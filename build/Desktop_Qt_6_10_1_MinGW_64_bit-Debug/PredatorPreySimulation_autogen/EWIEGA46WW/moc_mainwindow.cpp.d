@@ -388,6 +388,7 @@ C:/Users/temky/Documents/Evolution/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/Pr
   C:/Qt/6.10.1/mingw_64/include/QtGui/QImage \
   C:/Qt/6.10.1/mingw_64/include/QtGui/QMatrix3x3 \
   C:/Qt/6.10.1/mingw_64/include/QtGui/QMatrix4x4 \
+  C:/Qt/6.10.1/mingw_64/include/QtGui/QMouseEvent \
   C:/Qt/6.10.1/mingw_64/include/QtGui/QOpenGLContext \
   C:/Qt/6.10.1/mingw_64/include/QtGui/QPaintDevice \
   C:/Qt/6.10.1/mingw_64/include/QtGui/QPaintDeviceWindow \
@@ -396,6 +397,7 @@ C:/Users/temky/Documents/Evolution/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/Pr
   C:/Qt/6.10.1/mingw_64/include/QtGui/QSurfaceFormat \
   C:/Qt/6.10.1/mingw_64/include/QtGui/QTransform \
   C:/Qt/6.10.1/mingw_64/include/QtGui/QVector3D \
+  C:/Qt/6.10.1/mingw_64/include/QtGui/QWheelEvent \
   C:/Qt/6.10.1/mingw_64/include/QtGui/QWindow \
   C:/Qt/6.10.1/mingw_64/include/QtGui/QtGui \
   C:/Qt/6.10.1/mingw_64/include/QtGui/QtGuiDepends \
@@ -543,6 +545,7 @@ C:/Users/temky/Documents/Evolution/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/Pr
   C:/Qt/6.10.1/mingw_64/include/QtOpenGLWidgets/qtopenglwidgetsversion.h \
   C:/Qt/6.10.1/mingw_64/include/QtWidgets/QCommonStyle \
   C:/Qt/6.10.1/mingw_64/include/QtWidgets/QDockWidget \
+  C:/Qt/6.10.1/mingw_64/include/QtWidgets/QGraphicsScene \
   C:/Qt/6.10.1/mingw_64/include/QtWidgets/QGraphicsView \
   C:/Qt/6.10.1/mingw_64/include/QtWidgets/QGraphicsWidget \
   C:/Qt/6.10.1/mingw_64/include/QtWidgets/QLabel \
@@ -1029,8 +1032,10 @@ C:/Users/temky/Documents/Evolution/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/Pr
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/vadefs.h \
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h \
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wctype.h \
+  C:/Users/temky/Documents/Evolution/bush.h \
   C:/Users/temky/Documents/Evolution/organism.h \
   C:/Users/temky/Documents/Evolution/predator.h \
   C:/Users/temky/Documents/Evolution/prey.h \
   C:/Users/temky/Documents/Evolution/sidepanel.h \
-  C:/Users/temky/Documents/Evolution/simulationwidgets.h
+  C:/Users/temky/Documents/Evolution/simulationwidgets.h \
+  C:/Users/temky/Documents/Evolution/water.h

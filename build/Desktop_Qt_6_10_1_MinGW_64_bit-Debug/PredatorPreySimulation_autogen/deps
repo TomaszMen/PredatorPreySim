@@ -433,6 +433,7 @@ PredatorPreySimulation_autogen/timestamp: \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QImage \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QMatrix3x3 \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QMatrix4x4 \
+	C:/Qt/6.10.1/mingw_64/include/QtGui/QMouseEvent \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QOpenGLContext \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QPaintDevice \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QPaintDeviceWindow \
@@ -441,6 +442,7 @@ PredatorPreySimulation_autogen/timestamp: \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QSurfaceFormat \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QTransform \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QVector3D \
+	C:/Qt/6.10.1/mingw_64/include/QtGui/QWheelEvent \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QWindow \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QtGui \
 	C:/Qt/6.10.1/mingw_64/include/QtGui/QtGuiDepends \
@@ -588,6 +590,7 @@ PredatorPreySimulation_autogen/timestamp: \
 	C:/Qt/6.10.1/mingw_64/include/QtOpenGLWidgets/qtopenglwidgetsversion.h \
 	C:/Qt/6.10.1/mingw_64/include/QtWidgets/QCommonStyle \
 	C:/Qt/6.10.1/mingw_64/include/QtWidgets/QDockWidget \
+	C:/Qt/6.10.1/mingw_64/include/QtWidgets/QGraphicsScene \
 	C:/Qt/6.10.1/mingw_64/include/QtWidgets/QGraphicsView \
 	C:/Qt/6.10.1/mingw_64/include/QtWidgets/QGraphicsWidget \
 	C:/Qt/6.10.1/mingw_64/include/QtWidgets/QLabel \
@@ -1252,6 +1255,8 @@ PredatorPreySimulation_autogen/timestamp: \
 	C:/Users/temky/Documents/Evolution/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/4.2.0/CMakeRCCompiler.cmake \
 	C:/Users/temky/Documents/Evolution/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/4.2.0/CMakeSystem.cmake \
 	C:/Users/temky/Documents/Evolution/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PredatorPreySimulation_autogen/moc_predefs.h \
+	C:/Users/temky/Documents/Evolution/bush.cpp \
+	C:/Users/temky/Documents/Evolution/bush.h \
 	C:/Users/temky/Documents/Evolution/main.cpp \
 	C:/Users/temky/Documents/Evolution/mainwindow.cpp \
 	C:/Users/temky/Documents/Evolution/mainwindow.h \
@@ -1265,4 +1270,6 @@ PredatorPreySimulation_autogen/timestamp: \
 	C:/Users/temky/Documents/Evolution/sidepanel.h \
 	C:/Users/temky/Documents/Evolution/simulationwidgets.cpp \
 	C:/Users/temky/Documents/Evolution/simulationwidgets.h \
+	C:/Users/temky/Documents/Evolution/water.cpp \
+	C:/Users/temky/Documents/Evolution/water.h \
 	C:/Program\ Files/CMake/bin/cmake.exe

@@ -16,6 +16,8 @@ add_executable(PredatorPreySimulation
     organism.cpp
     prey.cpp
     predator.cpp
+    bush.h bush.cpp
+    water.h water.cpp
 )
 
 target_link_libraries(PredatorPreySimulation
