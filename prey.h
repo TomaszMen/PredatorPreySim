@@ -18,11 +18,24 @@ public:
 
     void update() override;
     Organism* reproduce() override;
+    void updateAI() override;
 
 private:
+    void updateNeeds();
+    void decideState();
+    void executeState();
+
+    // Specyficzne dla Prey
+    Organism* m_mateTarget;
+
+    // Umiejętności - DODANE TUTAJ
+    bool m_canSwim;
+
+    // Pomocnicze metody
+    Organism* findNearestMate();
+    Organism* findNearestPredator();
     QPointF findFood();
     void avoidPredators();
-    QPointF m_direction;
 };
 
 #endif // PREY_H

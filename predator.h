@@ -3,7 +3,6 @@
 
 #include "organism.h"
 #include <QVector>
-#include "prey.h"
 
 class Predator : public Organism
 {
@@ -19,13 +18,22 @@ public:
 
     void update() override;
     Organism* reproduce() override;
-
-    void setAvailablePrey(const QVector<Prey*> &prey) { m_availablePrey = prey; }
+    void updateAI() override;
 
 private:
-    Prey* findNearestPrey();
-    QPointF m_direction;
-    QVector<Prey*> m_availablePrey;
+    void updateNeeds();
+    void decideState();
+    void executeState();
+
+    // Specyficzne dla Predator
+    Organism* m_mateTarget;
+
+    // Umiejętności
+    bool m_canSwim;
+
+    // Pomocnicze metody
+    Organism* findNearestMate();
+    Organism* findNearestPrey();
 };
 
 #endif // PREDATOR_H

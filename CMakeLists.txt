@@ -10,12 +10,13 @@ find_package(Qt6 REQUIRED COMPONENTS Core Widgets Charts)
 
 add_executable(PredatorPreySimulation
     main.cpp
-    mainwindow.cpp
-    simulationwidgets.cpp
-    sidepanel.cpp
-    organism.cpp
-    prey.cpp
-    predator.cpp
+    mainwindow.h mainwindow.cpp
+    simulationwidgets.h simulationwidgets.cpp
+    sidepanel.h sidepanel.cpp
+    organism.h organism.cpp
+    prey.h prey.cpp
+    predator.h predator.cpp
+    environment.h environment.cpp
 )
 
 target_link_libraries(PredatorPreySimulation
@@ -27,4 +28,5 @@ target_link_libraries(PredatorPreySimulation
 # Opcjonalnie: ustaw właściwości specyficzne dla Qt6
 set_target_properties(PredatorPreySimulation PROPERTIES
     WIN32_EXECUTABLE TRUE
+    MACOSX_BUNDLE TRUE
 )

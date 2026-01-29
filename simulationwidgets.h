@@ -4,8 +4,10 @@
 #include <QWidget>
 #include <QTimer>
 #include <QVector>
+#include <QPointF>
 #include "prey.h"
 #include "predator.h"
+#include "environment.h"
 
 class QPushButton;
 class QVBoxLayout;
@@ -18,15 +20,31 @@ public:
     SimulationWidget(QWidget *parent = nullptr);
     ~SimulationWidget();
 
-public slots:  // Zmienione z private slots na public slots
+public slots:
     void startSimulation();
     void pauseSimulation();
     void resetSimulation();
     void addPrey(int count = 1);
     void addPredator(int count = 1);
+    void addBush();  // DODANE
+    void addWater(); // DODANE
+    void setSimulationParameters(float preyReproduction, float predatorReproduction,
+                                 float foodRegeneration, float energyConsumption,
+                                 float mutationRate, int initialPrey, int initialPredators);
+
+signals:
+    void statisticsUpdated(int preyCount, int predatorCount, int generation,
+                           float avgPreySpeed, float avgPredatorSpeed,
+                           float avgPreySize, float avgPredatorSize,
+                           int births, int deaths);
+    void historyUpdated(const QVector<int> &preyHistory, const QVector<int> &predatorHistory);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
 
 private slots:
@@ -34,19 +52,37 @@ private slots:
 
 private:
     void initializeSimulation();
+    void generateEnvironment();
     void removeDeadOrganisms();
     void reproduceOrganisms();
     void updateStatistics();
+    void updateEnvironment();
+    QPointF screenToWorld(const QPoint &screenPos) const;
+    QPoint worldToScreen(const QPointF &worldPos) const;
 
+    // Organizmy i środowisko
     QVector<Prey*> m_prey;
     QVector<Predator*> m_predators;
+    QVector<Environment*> m_environment;
 
+    // Kamera
+    QPointF m_cameraPosition;
+    float m_zoom;
+    bool m_isDragging;
+    QPoint m_lastMousePos;
+
+    // Symulacja
     QTimer *m_timer;
     bool m_isRunning;
+    int m_generation;
 
     // Statystyki
     QVector<int> m_preyHistory;
     QVector<int> m_predatorHistory;
+    QVector<int> m_birthHistory;
+    QVector<int> m_deathHistory;
+    int m_totalBirths;
+    int m_totalDeaths;
     int m_maxPopulation;
 
     // Parametry symulacji
@@ -54,7 +90,9 @@ private:
     float m_preyReproductionRate;
     float m_predatorReproductionRate;
     float m_energyConsumptionRate;
+    float m_mutationRate;
 
+    // Kontrolki
     QPushButton *m_startButton;
     QPushButton *m_pauseButton;
     QPushButton *m_resetButton;
