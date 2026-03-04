@@ -2,6 +2,8 @@ Praca inżynierska
 
 Projekt ma być symulatorem środowiska w którym drapieżniki i ofiary walczą o przeżycie
 
+Wykorzystywane jest QT Createor, projekt stworzona jako Aplikacja QT Widgets
+
 Program aktualnie ma zbudowane podstawowe SI drapieżników i ofiar
 Uciekanie, jedzenie, gonienie itd.
 Aktualnie pracuje nad "czasem spoczynku"
