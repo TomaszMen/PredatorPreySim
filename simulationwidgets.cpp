@@ -7,7 +7,7 @@
 #include <QDebug>
 #include <QWheelEvent>
 #include <QMouseEvent>
-#include <QResizeEvent>  // DODAJ TEN INCLUDE
+#include <QResizeEvent>
 
 SimulationWidget::SimulationWidget(QWidget *parent)
     : QWidget(parent)
@@ -19,7 +19,7 @@ SimulationWidget::SimulationWidget(QWidget *parent)
     , m_totalBirths(0)
     , m_totalDeaths(0)
     , m_maxPopulation(0)
-    , m_foodRegenerationRate(0.5f)
+    , m_foodRegenerationRate(2.0f)
     , m_preyReproductionRate(1.0f)
     , m_predatorReproductionRate(1.0f)
     , m_energyConsumptionRate(1.0f)
@@ -84,8 +84,8 @@ void SimulationWidget::initializeSimulation()
     generateEnvironment();
 
     // Początkowa populacja
-    addPrey(20);
-    addPredator(5);
+    addPrey(120);
+    addPredator(15);
 
     m_maxPopulation = m_prey.size() + m_predators.size();
     updateStatistics();
@@ -98,7 +98,7 @@ void SimulationWidget::generateEnvironment()
     // Generuj jeziora (woda)
     for (int i = 0; i < 5; ++i) {
         float radius = 50 + rand->bounded(100);
-        QPointF position(rand->bounded(2000), rand->bounded(1500));
+        QPointF position(rand->bounded(3000), rand->bounded(2000));
         m_environment.append(new Environment(position, Environment::WATER, radius));
     }
 
@@ -110,9 +110,9 @@ void SimulationWidget::generateEnvironment()
     }
 
     // Generuj krzaki (jedzenie)
-    for (int i = 0; i < 30; ++i) {
+    for (int i = 0; i < 50; ++i) {
         float size = 10 + rand->bounded(20);
-        QPointF position(rand->bounded(2000), rand->bounded(1500));
+        QPointF position(rand->bounded(3000), rand->bounded(2000));
 
         // Unikaj umieszczania krzaków w wodzie
         bool tooCloseToWater = false;
@@ -391,10 +391,9 @@ void SimulationWidget::removeDeadOrganisms()
 {
     int deaths = 0;
 
-    // Usuń martwe ofiary
     auto preyIt = m_prey.begin();
     while (preyIt != m_prey.end()) {
-        if ((*preyIt)->energy() <= 0 || (*preyIt)->hydration() <= 0 || (*preyIt)->age() > 800) {
+        if ((*preyIt)->energy() <= 0 || (*preyIt)->hydration() <= 0 || (*preyIt)->age() > 10000) {   // ← 1200 zamiast 800
             delete *preyIt;
             preyIt = m_prey.erase(preyIt);
             deaths++;
@@ -403,10 +402,9 @@ void SimulationWidget::removeDeadOrganisms()
         }
     }
 
-    // Usuń martwe drapieżniki
     auto predatorIt = m_predators.begin();
     while (predatorIt != m_predators.end()) {
-        if ((*predatorIt)->energy() <= 0 || (*predatorIt)->hydration() <= 0 || (*predatorIt)->age() > 600) {
+        if ((*predatorIt)->energy() <= 0 || (*predatorIt)->hydration() <= 0 || (*predatorIt)->age() > 7000) {   // ← 1000 zamiast 600
             delete *predatorIt;
             predatorIt = m_predators.erase(predatorIt);
             deaths++;

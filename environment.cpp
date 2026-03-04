@@ -43,7 +43,7 @@ void Environment::regenerateFood(float rate)
         m_foodLevel = std::min(m_maxFood, m_foodLevel + rate);
         // Możliwa regeneracja krzaków
         if (m_foodLevel <= 0 && QRandomGenerator::global()->bounded(1000) < 1) {
-            m_foodLevel = m_maxFood * 0.1f; // Odrastanie
+            m_foodLevel = m_maxFood * 0.5f; // Odrastanie
         }
     }
 }

@@ -72,13 +72,12 @@ void Predator::update()
     m_age++;
     m_lastKillTime++;
 
-    // Zmniejszone zużycie
-    m_energy -= 0.05f * (1.0f + m_speed / 4.0f); // Zmniejszone z 0.1f
-    m_hydration -= 0.03f * m_hydrationRateGene; // Zmniejszone z 0.06f
+    // Zmniejszone zużycie – 0.02 zamiast 0.05
+    m_energy -= 0.02f * (1.0f + m_speed / 5.0f);
+    m_hydration -= 0.02f * m_hydrationRateGene;   // 0.02 zamiast 0.03
 
-    // Mniejsza kara za wodę
     if (isInWater() && !m_canSwim) {
-        m_energy -= 0.1f; // Zmniejszone z 0.3f
+        m_energy -= 0.1f;   // kara pozostaje
         m_state = FLEEING;
     }
 
@@ -117,7 +116,6 @@ void Predator::update()
 
 void Predator::updateNeeds()
 {
-    // Sprawdź ofiary
     for (Organism* prey : m_availablePrey) {
         if (prey->energy() > 0) {
             float dx = prey->position().x() - m_position.x();
@@ -125,15 +123,15 @@ void Predator::updateNeeds()
             float distance = qSqrt(dx * dx + dy * dy);
 
             if (distance < m_size + prey->size()) {
-                float energyGained = prey->energy() * 0.8f;
+                float energyGained = prey->energy();   // ← 100% zamiast 0.8
                 m_energy += energyGained;
                 m_energy = std::min(200.0f, m_energy);
                 m_lastKillTime = 0;
-                m_currentTarget = nullptr; // Resetuj cel po zjedzeniu
+                m_currentTarget = nullptr;
 
-                prey->setEnergy(0);
+                prey->setEnergy(0);   // zabicie ofiary
                 m_state = EATING;
-                m_stateTimer = 8; // Krótszy czas jedzenia
+                m_stateTimer = 8;
                 break;
             }
         }
@@ -407,7 +405,6 @@ Organism* Predator::reproduce()
 {
     if (!canMate() || m_justReproduced) return nullptr;
 
-    // Szukaj partnera w pobliżu
     Organism* mate = findNearestMate();
     if (!mate || mate == this) return nullptr;
 
@@ -415,28 +412,16 @@ Organism* Predator::reproduce()
     float dy = mate->position().y() - m_position.y();
     float distance = qSqrt(dx * dx + dy * dy);
 
-    // Muszą być blisko siebie i mieć terytorium
-    if (distance < 40 && QRandomGenerator::global()->bounded(100) < m_reproductionRateGene) {
-        // Sprawdź czy w pobliżu jest wystarczająco jedzenia (ofiar)
-        int nearbyPrey = 0;
-        for (Organism* prey : m_availablePrey) {
-            if (prey->energy() > 0) {
-                float pdx = prey->position().x() - m_position.x();
-                float pdy = prey->position().y() - m_position.y();
-                float pDistance = qSqrt(pdx * pdx + pdy * pdy);
-                if (pDistance < 100) nearbyPrey++;
-            }
-        }
+    // Zwiększona szansa – reproductionRateGene * 3 (domyślnie 3%)
+    if (distance < 40 && QRandomGenerator::global()->bounded(100) < m_reproductionRateGene * 3) {
+        // Usuwamy warunek sprawdzania liczby ofiar w pobliżu – to blokowało wzrost
 
-        if (nearbyPrey < 2) return nullptr; // Za mało jedzenia dla młodych
-
-        m_energy -= 60;
-        m_hydration -= 40;
+        m_energy -= 40;
+        m_hydration -= 30;
         m_justReproduced = true;
-        m_reproductionCooldown = 150;
+        m_reproductionCooldown = 80;
 
-        // Partner też płaci koszt
-        mate->setEnergy(mate->energy() - 60);
+        mate->setEnergy(mate->energy() - 40);
 
         return new Predator(*static_cast<Predator*>(this), *static_cast<Predator*>(mate));
     }

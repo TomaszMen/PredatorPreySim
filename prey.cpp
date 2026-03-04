@@ -69,11 +69,11 @@ void Prey::update()
     m_lastMealTime++;
     m_lastDrinkTime++;
 
-    // Zmniejszone zużycie energii (wydłużenie życia)
-    m_energy -= 0.02f * (1.0f + m_speed / 3.0f);
-    m_hydration -= 0.04f * m_hydrationRateGene;
+    // Zmniejszone zużycie – 0.01 zamiast 0.02, mniejszy wpływ prędkości
+    m_energy -= 0.01f * (1.0f + m_speed / 5.0f);
+    m_hydration -= 0.02f * m_hydrationRateGene;   // 0.02 zamiast 0.04
 
-    // Mniejsza kara za bycie w wodzie
+    // Kara za wodę pozostaje bez zmian
     if (isInWater() && !m_canSwim) {
         m_energy -= 0.05f;
         m_state = FLEEING;
@@ -150,7 +150,6 @@ void Prey::updateAI()
 
 void Prey::updateNeeds()
 {
-    // Sprawdź czy jesteś przy krzaku i jedz
     for (Environment* env : m_environment) {
         if (env->type() == Environment::BUSH) {
             float dx = env->position().x() - m_position.x();
@@ -158,9 +157,9 @@ void Prey::updateNeeds()
             float distance = qSqrt(dx * dx + dy * dy);
 
             if (distance < m_size + env->size()) {
-                float foodTaken = env->consumeFood(5.0f);
+                float foodTaken = env->consumeFood(10.0f);   // ← z 5 na 10
                 if (foodTaken > 0) {
-                    m_energy += foodTaken * 3.0f;
+                    m_energy += foodTaken * 3.0f;   // 10*3 = 30 energii
                     m_energy = std::min(200.0f, m_energy);
                     m_lastMealTime = 0;
                     m_state = EATING;
@@ -357,13 +356,16 @@ Organism* Prey::reproduce()
     float dy = mate->position().y() - m_position.y();
     float distance = qSqrt(dx * dx + dy * dy);
 
-    if (distance < 25 && QRandomGenerator::global()->bounded(100) < m_reproductionRateGene * 2) {
-        m_energy -= 40;
-        m_hydration -= 30;
+    // Zwiększona szansa (2.5 * reproductionRateGene, domyślnie 2.5*1 = 2.5%?
+    // Ale reproductionRateGene może być modyfikowany – lepiej dać stałą bazową 5% + wpływ genu)
+    // Użyjemy reproductionRateGene * 5 (bo bounded(100) daje procent)
+    if (distance < 25 && QRandomGenerator::global()->bounded(100) < m_reproductionRateGene * 5) {
+        m_energy -= 30;          // mniejszy koszt
+        m_hydration -= 20;
         m_justReproduced = true;
-        m_reproductionCooldown = 100;
+        m_reproductionCooldown = 50;   // krótszy cooldown
 
-        mate->setEnergy(mate->energy() - 40);
+        mate->setEnergy(mate->energy() - 30);
 
         return new Prey(*static_cast<Prey*>(this), *static_cast<Prey*>(mate));
     }
