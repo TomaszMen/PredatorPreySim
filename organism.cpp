@@ -43,9 +43,8 @@ void Organism::mutateGenes()
 {
     QRandomGenerator *rand = QRandomGenerator::global();
 
-    // 10% szansy na mutację każdego genu
     if (rand->bounded(100) < 10) {
-        float mutation = (rand->bounded(200) - 100) / 500.0f; // +/- 20%
+        float mutation = (rand->bounded(200) - 100) / 500.0f;
         m_speedGene += mutation;
     }
 
@@ -69,7 +68,6 @@ void Organism::mutateGenes()
         m_hydrationRateGene += mutation;
     }
 
-    // Ograniczenie wartości genów
     m_speedGene = std::max(0.3f, std::min(3.0f, m_speedGene));
     m_sizeGene = std::max(0.3f, std::min(3.0f, m_sizeGene));
     m_visionGene = std::max(0.3f, std::min(3.0f, m_visionGene));
@@ -104,7 +102,6 @@ QPointF Organism::avoidWater()
             float distance = qSqrt(dx * dx + dy * dy);
 
             if (distance < m_visionRange * 1.5f) {
-                // Im bliżej wody, tym silniejsze unikanie
                 float weight = 1.0f - (distance / (m_visionRange * 1.5f));
                 QPointF dir(-dx, -dy);
                 float len = qSqrt(dir.x() * dir.x() + dir.y() * dir.y());
@@ -245,7 +242,6 @@ void Organism::moveTowards(const QPointF &target, float weight)
     if (distance > 0) {
         direction /= distance;
         m_direction = m_direction * (1.0f - weight) + direction * weight;
-        // Normalizuj
         float length = qSqrt(m_direction.x() * m_direction.x() + m_direction.y() * m_direction.y());
         if (length > 0) {
             m_direction /= length;
@@ -271,7 +267,7 @@ void Organism::wander()
 {
     QRandomGenerator *rand = QRandomGenerator::global();
     if (rand->bounded(100) < 5) {
-        float angle = (rand->bounded(60) - 30) * M_PI / 180.0f; // ±30 stopni
+        float angle = (rand->bounded(60) - 30) * M_PI / 180.0f;
         float currentAngle = qAtan2(m_direction.y(), m_direction.x());
         float newAngle = currentAngle + angle;
         m_direction = QPointF(qCos(newAngle), qSin(newAngle));
@@ -280,7 +276,6 @@ void Organism::wander()
 
 void Organism::applyBoundaries()
 {
-    // Granice świata (powiększony świat)
     float worldWidth = 3000;
     float worldHeight = 2000;
     if (m_position.x() < 0) {
@@ -303,11 +298,10 @@ void Organism::applyBoundaries()
 
 float Organism::calculateFitness() const
 {
-    // Fitness do selekcji naturalnej
     float fitness = 0;
     fitness += m_speed * 0.3f;
     fitness += m_visionRange * 0.2f;
-    fitness += (200.0f - m_size) * 0.1f; // Mniejsze organizmy mają przewagę
+    fitness += (200.0f - m_size) * 0.1f;
     fitness += m_energy * 0.4f;
     return fitness;
 }
