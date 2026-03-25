@@ -2,6 +2,11 @@
 #include <QRandomGenerator>
 #include <QDebug>
 
+float Organism::s_energyConsumptionFactor = 1.0f;
+float Organism::s_mutationRatePercent = 5.0f;
+float Organism::s_preyReproductionFactor = 1.0f;
+float Organism::s_predatorReproductionFactor = 1.0f;
+
 Organism::Organism(QObject *parent)
     : QObject(parent)
     , m_position(0, 0)
@@ -42,34 +47,33 @@ Organism::~Organism()
 void Organism::mutateGenes()
 {
     QRandomGenerator *rand = QRandomGenerator::global();
+    float mutationChance = s_mutationRatePercent / 100.0f;
 
-    // 10% szansy na mutację każdego genu
-    if (rand->bounded(100) < 10) {
-        float mutation = (rand->bounded(200) - 100) / 500.0f; // +/- 20%
+    if (rand->bounded(1.0f) < mutationChance) {
+        float mutation = (rand->bounded(200) - 100) / 500.0f;
         m_speedGene += mutation;
     }
 
-    if (rand->bounded(100) < 10) {
+    if (rand->bounded(1.0f) < mutationChance) {
         float mutation = (rand->bounded(200) - 100) / 500.0f;
         m_sizeGene += mutation;
     }
 
-    if (rand->bounded(100) < 10) {
+    if (rand->bounded(1.0f) < mutationChance) {
         float mutation = (rand->bounded(200) - 100) / 500.0f;
         m_visionGene += mutation;
     }
 
-    if (rand->bounded(100) < 10) {
+    if (rand->bounded(1.0f) < mutationChance) {
         float mutation = (rand->bounded(200) - 100) / 500.0f;
         m_reproductionRateGene += mutation;
     }
 
-    if (rand->bounded(100) < 10) {
+    if (rand->bounded(1.0f) < mutationChance) {
         float mutation = (rand->bounded(200) - 100) / 500.0f;
         m_hydrationRateGene += mutation;
     }
 
-    // Ograniczenie wartości genów
     m_speedGene = std::max(0.3f, std::min(3.0f, m_speedGene));
     m_sizeGene = std::max(0.3f, std::min(3.0f, m_sizeGene));
     m_visionGene = std::max(0.3f, std::min(3.0f, m_visionGene));
@@ -84,7 +88,7 @@ bool Organism::isInWater() const
             float dx = env->position().x() - m_position.x();
             float dy = env->position().y() - m_position.y();
             float distance = qSqrt(dx * dx + dy * dy);
-            if (distance < env->size()) {
+            if (distance < env->size() + m_size) {
                 return true;
             }
         }
@@ -140,14 +144,26 @@ QPointF Organism::seekWater()
 
 Environment* Organism::findNearestWater()
 {
+    if (m_environment.isEmpty()) {
+        return nullptr;
+    }
+
     Environment* nearest = nullptr;
     float nearestDistance = std::numeric_limits<float>::max();
 
-    for (Environment* env : m_environment) {
+    int size = m_environment.size();
+    for (int i = 0; i < size; ++i) {
+        Environment* env = m_environment[i];
+
+        if (!env) {
+            continue;
+        }
+
         if (env->type() == Environment::WATER) {
             float dx = env->position().x() - m_position.x();
             float dy = env->position().y() - m_position.y();
             float distance = qSqrt(dx * dx + dy * dy);
+
             if (distance < nearestDistance && distance < m_visionRange * 2) {
                 nearestDistance = distance;
                 nearest = env;
@@ -160,14 +176,31 @@ Environment* Organism::findNearestWater()
 
 Environment* Organism::findNearestBush()
 {
+    // Sprawdź czy środowisko jest puste
+    if (m_environment.isEmpty()) {
+        return nullptr;
+    }
+
     Environment* nearest = nullptr;
     float nearestDistance = std::numeric_limits<float>::max();
 
-    for (Environment* env : m_environment) {
+    int envSize = m_environment.size();
+    for (int i = 0; i < envSize; ++i) {
+        Environment* env = m_environment[i];
+
+        // Kluczowe: sprawdź czy wskaźnik jest poprawny
+        if (!env) {
+            continue;
+        }
+
+        // Dodaj sprawdzenie, czy env nie został usunięty
+        // Możemy sprawdzić poprzez typ (jeśli env jest nullptr, to już sprawdziliśmy)
+
         if (env->type() == Environment::BUSH && env->foodLevel() > 10) {
             float dx = env->position().x() - m_position.x();
             float dy = env->position().y() - m_position.y();
             float distance = qSqrt(dx * dx + dy * dy);
+
             if (distance < nearestDistance && distance < m_visionRange * 1.5f) {
                 nearestDistance = distance;
                 nearest = env;
@@ -271,7 +304,7 @@ void Organism::wander()
 {
     QRandomGenerator *rand = QRandomGenerator::global();
     if (rand->bounded(100) < 5) {
-        float angle = (rand->bounded(60) - 30) * M_PI / 180.0f; // ±30 stopni
+        float angle = (rand->bounded(60) - 30) * M_PI / 180.0f;
         float currentAngle = qAtan2(m_direction.y(), m_direction.x());
         float newAngle = currentAngle + angle;
         m_direction = QPointF(qCos(newAngle), qSin(newAngle));
@@ -310,4 +343,13 @@ float Organism::calculateFitness() const
     fitness += (200.0f - m_size) * 0.1f; // Mniejsze organizmy mają przewagę
     fitness += m_energy * 0.4f;
     return fitness;
+}
+
+void Organism::setGlobalParameters(float energyFactor, float mutation,
+                                   float preyRepro, float predatorRepro)
+{
+    s_energyConsumptionFactor = energyFactor;
+    s_mutationRatePercent = mutation;
+    s_preyReproductionFactor = preyRepro;
+    s_predatorReproductionFactor = predatorRepro;
 }

@@ -19,11 +19,13 @@ public:
     void update() override;
     Organism* reproduce() override;
     void updateAI() override;
+    bool canSwim() const { return m_canSwim; }
 
 private:
     void updateNeeds();
     void decideState();
     void executeState();
+    QPointF findNearestLandPoint();
 
     // Specyficzne dla Predator
     Organism* m_mateTarget;

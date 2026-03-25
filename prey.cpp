@@ -1,11 +1,14 @@
 #include "prey.h"
 #include <QtMath>
 #include <QDebug>
+#include "herd.h"
 
 Prey::Prey(QPointF position, float speed, float size, float vision, QObject *parent)
     : Organism(parent)
     , m_mateTarget(nullptr)
-    , m_canSwim(false)  // Inicjalizacja DODANA
+    , m_canSwim(false)
+    , m_herd(nullptr)
+    , m_herdAttraction(0.5f)
 {
     m_position = position;
     m_type = PREY;
@@ -17,7 +20,6 @@ Prey::Prey(QPointF position, float speed, float size, float vision, QObject *par
     m_hydration = 100.0f;
     m_age = 0;
 
-    // Inicjalizacja genów z normalizacją
     m_speedGene = speed / 2.0f;
     m_sizeGene = size / 10.0f;
     m_visionGene = vision / 100.0f;
@@ -32,12 +34,13 @@ Prey::Prey(QPointF position, float speed, float size, float vision, QObject *par
 Prey::Prey(const Prey &parent1, const Prey &parent2)
     : Organism(nullptr)
     , m_mateTarget(nullptr)
-    , m_canSwim(false)  // Inicjalizacja DODANA
+    , m_canSwim(false)
+    , m_herd(nullptr)
+    , m_herdAttraction(0.5f)
 {
     m_type = PREY;
     m_color = QColor(0, 255, 0);
 
-    // Dziedziczenie z mutacją
     m_speedGene = (parent1.m_speedGene + parent2.m_speedGene) / 2.0f;
     m_sizeGene = (parent1.m_sizeGene + parent2.m_sizeGene) / 2.0f;
     m_visionGene = (parent1.m_visionGene + parent2.m_visionGene) / 2.0f;
@@ -46,7 +49,6 @@ Prey::Prey(const Prey &parent1, const Prey &parent2)
 
     mutateGenes();
 
-    // Ustawienie fenotypu
     m_speed = m_speedGene * 2.0f;
     m_size = m_sizeGene * 10.0f;
     m_visionRange = m_visionGene * 100.0f;
@@ -69,62 +71,48 @@ void Prey::update()
     m_lastMealTime++;
     m_lastDrinkTime++;
 
-    // Zmniejszone zużycie – 0.01 zamiast 0.02, mniejszy wpływ prędkości
-    m_energy -= 0.01f * (1.0f + m_speed / 5.0f);
-    m_hydration -= 0.02f * m_hydrationRateGene;   // 0.02 zamiast 0.04
+    m_energy -= 0.01f * (1.0f + m_speed / 5.0f) * s_energyConsumptionFactor;
+    m_hydration -= 0.02f * m_hydrationRateGene * s_energyConsumptionFactor;
 
-    // Kara za wodę pozostaje bez zmian
     if (isInWater() && !m_canSwim) {
         m_energy -= 0.05f;
         m_state = FLEEING;
     }
 
-    // Aktualizuj potrzeby i AI
     updateNeeds();
     updateAI();
 
-    // Wykonaj ruch zgodnie z aktualnym stanem
     executeState();
 
-    // Ruch z możliwością przyśpieszenia podczas ucieczki
     float currentSpeed = m_speed;
-    if (m_state == FLEEING && m_fearLevel > 0.5f) {
-        currentSpeed *= 1.8f; // Przyśpieszenie podczas ucieczki
+    if (m_state == RESTING) {
+        currentSpeed *= 0.2f;
+    } else if (m_state == FLEEING && m_fearLevel > 0.5f) {
+        currentSpeed *= 1.8f;
     }
 
     m_position += m_direction * currentSpeed;
     applyBoundaries();
 
-    // Mniejsze ograniczenie prędkości w wodzie
     if (isInWater() && !m_canSwim) {
         m_position += m_direction * (currentSpeed * 0.5f);
     }
 
-    // Aktualizacja koloru
     int green = std::max(0, std::min(255, (int)(255 * (m_energy / 200.0f))));
     int blue = std::max(0, std::min(255, (int)(255 * (m_hydration / 100.0f))));
     m_color = QColor(0, green, blue);
 
-    // Reset cooldownów
     if (m_reproductionCooldown > 0) m_reproductionCooldown--;
     if (m_reproductionCooldown == 0) m_justReproduced = false;
 }
 
 void Prey::updateAI()
 {
-    // Hierarchia potrzeb:
-    // 1. Unikaj drapieżników (strach)
-    // 2. Szukaj wody (pragnienie)
-    // 3. Szukaj jedzenia (głód)
-    // 4. Szukaj partnera (rozmnażanie)
-    // 5. Wędruj losowo
-
     m_fearLevel = 0;
     m_thirstLevel = 0;
     m_hungerLevel = 0;
     m_matingUrge = 0;
 
-    // Oblicz poziom strachu
     Organism* predator = findNearestPredator();
     if (predator) {
         float dx = predator->position().x() - m_position.x();
@@ -134,15 +122,12 @@ void Prey::updateAI()
         m_fearLevel = std::max(0.0f, std::min(1.0f, m_fearLevel));
     }
 
-    // Oblicz poziom pragnienia
     m_thirstLevel = 1.0f - (m_hydration / 100.0f);
     if (m_lastDrinkTime > 200) m_thirstLevel = 1.0f;
 
-    // Oblicz poziom głodu
     m_hungerLevel = 1.0f - (m_energy / 200.0f);
     if (m_lastMealTime > 150) m_hungerLevel = 1.0f;
 
-    // Oblicz potrzebę rozmnażania
     if (canMate() && m_age > 100) {
         m_matingUrge = 0.7f;
     }
@@ -157,9 +142,9 @@ void Prey::updateNeeds()
             float distance = qSqrt(dx * dx + dy * dy);
 
             if (distance < m_size + env->size()) {
-                float foodTaken = env->consumeFood(10.0f);   // ← z 5 na 10
+                float foodTaken = env->consumeFood(10.0f);
                 if (foodTaken > 0) {
-                    m_energy += foodTaken * 3.0f;   // 10*3 = 30 energii
+                    m_energy += foodTaken * 3.0f;
                     m_energy = std::min(200.0f, m_energy);
                     m_lastMealTime = 0;
                     m_state = EATING;
@@ -168,7 +153,6 @@ void Prey::updateNeeds()
             }
         }
 
-        // Pij wodę
         if (env->type() == Environment::WATER) {
             float dx = env->position().x() - m_position.x();
             float dy = env->position().y() - m_position.y();
@@ -188,10 +172,7 @@ void Prey::decideState()
 {
     m_stateTimer--;
 
-    if (m_stateTimer > 0 && (m_state == EATING || m_state == DRINKING || m_state == MATING)) {
-        if (m_stateTimer < 15) {
-            m_state = WANDERING;
-        }
+    if (m_state == RESTING && m_stateTimer > 0) {
         return;
     }
 
@@ -211,6 +192,10 @@ void Prey::decideState()
         m_state = MATING;
         m_stateTimer = 40;
     }
+    else if (m_energy > 150.0f && m_hydration > 80.0f && m_fearLevel < 0.1f) {
+        m_state = RESTING;
+        m_stateTimer = 30 + QRandomGenerator::global()->bounded(50);
+    }
     else {
         m_state = WANDERING;
         m_stateTimer = 15 + QRandomGenerator::global()->bounded(20);
@@ -221,13 +206,46 @@ void Prey::executeState()
 {
     decideState();
 
+    if (m_herd && m_herd->getAlpha() && m_state != FLEEING && m_state != MATING) {
+        if (isAlpha()) {
+            if (m_herd->hasTarget()) {
+                QPointF target = m_herd->getTargetPosition();
+                float dx = target.x() - m_position.x();
+                float dy = target.y() - m_position.y();
+                float distance = qSqrt(dx * dx + dy * dy);
+
+                if (distance > 30.0f) {
+                    moveTowards(target, 0.3f);
+                } else {
+                    wander();
+                }
+            } else {
+                wander();
+            }
+        } else {
+            followAlpha();
+        }
+    }
+
     switch(m_state) {
     case FLEEING: {
         Organism* predator = findNearestPredator();
         if (predator) {
             moveAwayFrom(predator->position(), 0.8f);
         } else {
-            wander();
+            // Jeśli nie ma drapieżnika, ale uciekaliśmy, wróć do stada
+            if (m_herd && m_herd->getAlpha() && !isAlpha()) {
+                followAlpha();
+            } else if (m_herd && m_herd->getAlpha() && isAlpha()) {
+                // Alfa wraca do celu
+                if (m_herd->hasTarget()) {
+                    moveTowards(m_herd->getTargetPosition(), 0.5f);
+                } else {
+                    wander();
+                }
+            } else {
+                wander();
+            }
         }
         QPointF waterAvoidance = avoidWater();
         if (waterAvoidance.manhattanLength() > 0) {
@@ -238,18 +256,14 @@ void Prey::executeState()
     case HUNTING: {
         if (m_thirstLevel > m_hungerLevel) {
             Environment* water = findNearestWater();
-            if (water) {
-                moveTowards(water->position(), 0.6f);
-            } else {
-                wander();
-            }
+            if (water) moveTowards(water->position(), 0.6f);
+            else if (m_herd && m_herd->getAlpha()) followAlpha();
+            else wander();
         } else {
             Environment* bush = findNearestBush();
-            if (bush) {
-                moveTowards(bush->position(), 0.6f);
-            } else {
-                wander();
-            }
+            if (bush) moveTowards(bush->position(), 0.6f);
+            else if (m_herd && m_herd->getAlpha()) followAlpha();
+            else wander();
         }
         break;
     }
@@ -270,7 +284,8 @@ void Prey::executeState()
                 moveTowards(m_mateTarget->position(), 0.7f);
             }
         } else {
-            wander();
+            if (m_herd && m_herd->getAlpha()) followAlpha();
+            else wander();
         }
         break;
     }
@@ -278,12 +293,19 @@ void Prey::executeState()
     case DRINKING:
         m_direction *= 0.3f;
         break;
+    case RESTING:
+        m_direction *= 0.5f;
+        break;
     case WANDERING:
     default:
-        wander();
-        QPointF waterAvoidance = avoidWater();
-        if (waterAvoidance.manhattanLength() > 0) {
-            moveTowards(m_position + waterAvoidance, 0.1f);
+        if (m_herd && m_herd->getAlpha() && !isAlpha()) {
+            followAlpha();
+        } else {
+            wander();
+            if (m_herd && QRandomGenerator::global()->bounded(500) < 1) {
+                m_herd->removeMember(this);
+                m_herd = nullptr;
+            }
         }
         break;
     }
@@ -354,21 +376,83 @@ Organism* Prey::reproduce()
 
     float dx = mate->position().x() - m_position.x();
     float dy = mate->position().y() - m_position.y();
-    float distance = qSqrt(dx * dx + dy * dy);
+    float distance = qSqrt(dx*dx + dy*dy);
 
-    // Zwiększona szansa (2.5 * reproductionRateGene, domyślnie 2.5*1 = 2.5%?
-    // Ale reproductionRateGene może być modyfikowany – lepiej dać stałą bazową 5% + wpływ genu)
-    // Użyjemy reproductionRateGene * 5 (bo bounded(100) daje procent)
-    if (distance < 25 && QRandomGenerator::global()->bounded(100) < m_reproductionRateGene * 5) {
-        m_energy -= 30;          // mniejszy koszt
-        m_hydration -= 20;
+    if (distance < 25 && QRandomGenerator::global()->bounded(100) <
+                             m_reproductionRateGene * 5 * s_preyReproductionFactor) {
+        m_energy -= 20;
+        m_hydration -= 15;
         m_justReproduced = true;
-        m_reproductionCooldown = 50;   // krótszy cooldown
+        m_reproductionCooldown = 40;
 
-        mate->setEnergy(mate->energy() - 30);
-
+        mate->setEnergy(mate->energy() - 20);
         return new Prey(*static_cast<Prey*>(this), *static_cast<Prey*>(mate));
     }
-
     return nullptr;
+}
+
+QPointF Prey::getHerdCenter                                 ()
+{
+    QPointF center(0,0);
+    int count = 0;
+    for (Organism* org : m_availablePrey) {
+        if (org != this && org->energy() > 0) {
+            float dx = org->position().x() - m_position.x();
+            float dy = org->position().y() - m_position.y();
+            float distance = qSqrt(dx*dx + dy*dy);
+            if (distance < m_visionRange) {
+                center += org->position();
+                count++;
+            }
+        }
+    }
+    if (count > 0) return center / count;
+    return m_position;
+}
+
+void Prey::followAlpha()
+{
+    if (!m_herd || !m_herd->getAlpha() || m_herd->getAlpha() == this)
+        return;
+
+    Prey* alpha = m_herd->getAlpha();
+    if (alpha->energy() <= 0)
+        return;
+
+    float dx = alpha->position().x() - m_position.x();
+    float dy = alpha->position().y() - m_position.y();
+    float distance = qSqrt(dx * dx + dy * dy);
+
+    float optimalDistance = m_size + alpha->size() + 25.0f;
+
+    if (distance > optimalDistance * 1.2f) {
+        moveTowards(alpha->position(), 0.3f);
+    }
+    else if (distance < optimalDistance * 0.8f) {
+        moveAwayFrom(alpha->position(), 0.15f);
+    }
+    else {
+        float angleDiff = 0.05f;
+        float alphaAngle = qAtan2(alpha->direction().y(), alpha->direction().x());
+        float myAngle = qAtan2(m_direction.y(), m_direction.x());
+        float newAngle = myAngle + (alphaAngle - myAngle) * 0.1f;
+        m_direction = QPointF(qCos(newAngle), qSin(newAngle));
+
+        QRandomGenerator* rand = QRandomGenerator::global();
+        if (rand->bounded(100) < 10) {
+            float randomAngle = (rand->bounded(20) - 10) * M_PI / 180.0f;
+            newAngle = qAtan2(m_direction.y(), m_direction.x()) + randomAngle;
+            m_direction = QPointF(qCos(newAngle), qSin(newAngle));
+        }
+    }
+}
+
+bool Prey::isAlpha() const
+{
+    return m_herd && m_herd->getAlpha() == this;
+}
+
+void Prey::moveTowardsTarget(const QPointF& target)
+{
+    moveTowards(target, 0.4f);
 }

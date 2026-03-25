@@ -7,6 +7,7 @@
 #include <QtMath>
 #include <algorithm>
 #include <QVector>
+#include <qreadwritelock.h>
 #include "environment.h"
 
 class Organism : public QObject
@@ -44,6 +45,8 @@ public:
     void setAvailablePredators(const QVector<Organism*> &predators) { m_availablePredators = predators; }
     void setEnvironment(const QVector<Environment*> &environment) { m_environment = environment; }
 
+    QString stateToString(State state) const;
+
     bool canMate() const {
         return m_energy > 120 && m_hydration > 60 &&
                m_age > 50 && m_age < 500 &&
@@ -51,6 +54,23 @@ public:
     }
 
     bool isInWater() const;
+
+    bool isEnvironmentValid() const { return m_environmentValid; }
+
+    static float s_energyConsumptionFactor;
+    static float s_mutationRatePercent;
+    static float s_preyReproductionFactor;
+    static float s_predatorReproductionFactor;
+
+    static void setGlobalParameters(float energyFactor, float mutation,
+                                    float preyRepro, float predatorRepro);
+
+    Environment* findNearestWater();
+    Environment* findNearestBush();
+
+    void moveTowards(const QPointF &target, float weight = 1.0f);
+    void moveAwayFrom(const QPointF &target, float weight = 1.0f);
+    void wander();
 
 protected:
     QPointF m_position;
@@ -98,16 +118,13 @@ protected:
     void mutateGenes();
     QPointF avoidWater();
     QPointF seekWater();
-    Environment* findNearestWater();
-    Environment* findNearestBush();
     Organism* findNearestPrey();
     Organism* findNearestMate();
     Organism* findNearestPredator();
     float calculateFitness() const;
 
-    void moveTowards(const QPointF &target, float weight = 1.0f);
-    void moveAwayFrom(const QPointF &target, float weight = 1.0f);
-    void wander();
+    mutable QReadWriteLock m_envLock;
+    bool m_environmentValid = true;
 
     void applyBoundaries();
 };

@@ -5,7 +5,6 @@
 #include <QPointF>
 #include <QColor>
 #include <QRandomGenerator>
-#include <algorithm>
 
 class Environment : public QObject
 {
@@ -27,7 +26,7 @@ public:
     void regenerateFood(float rate);
 
     // Dla wody
-    bool isWalkable() const { return m_type != WATER; }
+    bool isWalkable() const { return m_type == WATER; }
 
 private:
     QPointF m_position;

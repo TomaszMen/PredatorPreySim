@@ -4,6 +4,9 @@
 #include "organism.h"
 #include <QRandomGenerator>
 
+// Forward declaration
+class Herd;
+
 class Prey : public Organism
 {
     Q_OBJECT
@@ -19,6 +22,19 @@ public:
     void update() override;
     Organism* reproduce() override;
     void updateAI() override;
+    bool canSwim() const { return m_canSwim; }
+
+    // Nowe metody dla mechaniki stada
+    void setHerd(Herd* herd) { m_herd = herd; }
+    Herd* getHerd() const { return m_herd; }
+    void followAlpha();
+    bool isAlpha() const;  // Przeniesione do .cpp
+
+    // Metody do znajdowania obiektów środowiska (publiczne dla Herd)
+    using Organism::findNearestBush;
+    using Organism::findNearestWater;
+
+    void moveTowardsTarget(const QPointF& target);
 
 private:
     void updateNeeds();
@@ -27,14 +43,15 @@ private:
 
     // Specyficzne dla Prey
     Organism* m_mateTarget;
-
-    // Umiejętności - DODANE TUTAJ
     bool m_canSwim;
+    Herd* m_herd;
+    float m_herdAttraction;
 
     // Pomocnicze metody
     Organism* findNearestMate();
     Organism* findNearestPredator();
     QPointF findFood();
+    QPointF getHerdCenter();
     void avoidPredators();
 };
 

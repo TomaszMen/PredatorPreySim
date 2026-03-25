@@ -36,17 +36,15 @@ Predator::Predator(const Predator &parent1, const Predator &parent2)
     m_type = PREDATOR;
     m_color = QColor(255, 0, 0);
 
-    // Dziedziczenie cech
     m_speedGene = (parent1.m_speedGene + parent2.m_speedGene) / 2.0f;
     m_sizeGene = (parent1.m_sizeGene + parent2.m_sizeGene) / 2.0f;
     m_visionGene = (parent1.m_visionGene + parent2.m_visionGene) / 2.0f;
     m_reproductionRateGene = (parent1.m_reproductionRateGene + parent2.m_reproductionRateGene) / 2.0f;
     m_hydrationRateGene = (parent1.m_hydrationRateGene + parent2.m_hydrationRateGene) / 2.0f;
 
-    // Dziedziczenie umiejętności pływania
     m_canSwim = parent1.m_canSwim && parent2.m_canSwim;
     if (QRandomGenerator::global()->bounded(100) < 5) {
-        m_canSwim = !m_canSwim; // Mutacja umiejętności pływania
+        m_canSwim = !m_canSwim;
     }
 
     mutateGenes();
@@ -72,37 +70,39 @@ void Predator::update()
     m_age++;
     m_lastKillTime++;
 
-    // Zmniejszone zużycie – 0.02 zamiast 0.05
-    m_energy -= 0.02f * (1.0f + m_speed / 5.0f);
-    m_hydration -= 0.02f * m_hydrationRateGene;   // 0.02 zamiast 0.03
+    m_energy -= 0.02f * (1.0f + m_speed / 5.0f) * s_energyConsumptionFactor;
+    m_hydration -= 0.02f * m_hydrationRateGene * s_energyConsumptionFactor;
 
     if (isInWater() && !m_canSwim) {
-        m_energy -= 0.1f;   // kara pozostaje
+        m_energy -= 0.01f;
         m_state = FLEEING;
+        m_stateTimer = 30;
     }
 
     updateNeeds();
     updateAI();
     executeState();
 
-    // Ruch z możliwością przyśpieszenia podczas polowania
     float currentSpeed = m_speed;
+
     if (m_state == HUNTING && m_currentTarget != nullptr) {
         float dx = m_currentTarget->position().x() - m_position.x();
         float dy = m_currentTarget->position().y() - m_position.y();
         float distance = qSqrt(dx * dx + dy * dy);
-
         if (distance < m_visionRange * 0.5f) {
-            currentSpeed *= 1.5f; // Przyśpieszenie podczas zbliżania do ofiary
+            currentSpeed *= 1.5f;
         }
     }
 
-    if (isInWater() && m_canSwim) {
-        m_position += m_direction * (currentSpeed * 0.8f);
-    } else {
-        m_position += m_direction * currentSpeed;
+    if (isInWater()) {
+        if (m_canSwim) {
+            currentSpeed = m_speed * 2.0f;
+        } else {
+            currentSpeed = m_speed * 5.0f;
+        }
     }
 
+    m_position += m_direction * currentSpeed;
     applyBoundaries();
 
     // Aktualizacja koloru
@@ -295,30 +295,29 @@ void Predator::executeState()
         }
         break;
     case FLEEING:
-        // Jeśli uciekasz z wody, znajdź suchy ląd
-        if (isInWater() && !m_canSwim) {
+        if (isInWater()) {
+            // Szukamy najbliższego lądu (obszar niebędący wodą)
             Environment* nearestLand = nullptr;
             float nearestDistance = std::numeric_limits<float>::max();
-
-            // Szukaj obszaru bez wody
             for (Environment* env : m_environment) {
                 if (env->type() != Environment::WATER) {
                     float dx = env->position().x() - m_position.x();
                     float dy = env->position().y() - m_position.y();
-                    float distance = qSqrt(dx * dx + dy * dy);
+                    float distance = qSqrt(dx*dx + dy*dy);
                     if (distance < nearestDistance) {
                         nearestDistance = distance;
                         nearestLand = env;
                     }
                 }
             }
-
             if (nearestLand) {
+                // Silniejszy zwrot w kierunku lądu
                 moveTowards(nearestLand->position(), 0.9f);
             } else {
                 wander();
             }
         } else {
+            // normalna ucieczka przed drapieżnikami (dla drapieżnika rzadko używana)
             wander();
         }
         break;
@@ -412,19 +411,57 @@ Organism* Predator::reproduce()
     float dy = mate->position().y() - m_position.y();
     float distance = qSqrt(dx * dx + dy * dy);
 
-    // Zwiększona szansa – reproductionRateGene * 3 (domyślnie 3%)
-    if (distance < 40 && QRandomGenerator::global()->bounded(100) < m_reproductionRateGene * 3) {
-        // Usuwamy warunek sprawdzania liczby ofiar w pobliżu – to blokowało wzrost
-
-        m_energy -= 40;
-        m_hydration -= 30;
+    if (distance < 40 && QRandomGenerator::global()->bounded(100) < m_reproductionRateGene * 3 * s_predatorReproductionFactor) {
+        m_energy -= 30;
+        m_hydration -= 20;
         m_justReproduced = true;
-        m_reproductionCooldown = 80;
+        m_reproductionCooldown = 60;
 
-        mate->setEnergy(mate->energy() - 40);
+        mate->setEnergy(mate->energy() - 30);
 
         return new Predator(*static_cast<Predator*>(this), *static_cast<Predator*>(mate));
     }
 
     return nullptr;
+}
+
+QPointF Predator::findNearestLandPoint()
+{
+    float step = 15.0f;                     // krok przeszukiwania
+    float maxRadius = m_visionRange * 1.5f; // maksymalny promień szukania
+    QPointF bestPoint = m_position;
+    float bestDistSq = std::numeric_limits<float>::max();
+
+    // Sprawdzamy 16 kierunków
+    for (float angle = 0; angle < 2 * M_PI; angle += M_PI / 8) {
+        QPointF dir(std::cos(angle), std::sin(angle));
+        for (float r = step; r <= maxRadius; r += step) {
+            QPointF testPoint = m_position + dir * r;
+            bool inWater = false;
+
+            // Sprawdzamy, czy testPoint znajduje się w jakimś zbiorniku wodnym
+            for (Environment* env : m_environment) {
+                if (env->type() == Environment::WATER) {
+                    float dx = env->position().x() - testPoint.x();
+                    float dy = env->position().y() - testPoint.y();
+                    float dist = std::sqrt(dx * dx + dy * dy);
+                    if (dist < env->size()) {
+                        inWater = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!inWater) {
+                // Znaleziono ląd – zapamiętujemy najbliższy punkt
+                float distSq = r * r;
+                if (distSq < bestDistSq) {
+                    bestDistSq = distSq;
+                    bestPoint = testPoint;
+                }
+                break; // dla tego kierunku już mamy pierwszy punkt na lądzie
+            }
+        }
+    }
+    return bestPoint;
 }

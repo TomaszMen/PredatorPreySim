@@ -96,6 +96,62 @@ void SidePanel::setupParametersTab()
     m_initialPredatorsSpin->setValue(5);
     formLayout->addRow("Początkowa liczba drapieżników:", m_initialPredatorsSpin);
 
+    m_preyReproductionSpin->setToolTip(
+        "Współczynnik tempa reprodukcji ofiar.\n"
+        "Wartość 1.0 = normalne tempo.\n"
+        "Wartość > 1.0 zwiększa szansę rozmnażania (liniowo).\n"
+        "Wpływa na stabilność populacji – zbyt wysokie może prowadzić do przeludnienia,\n"
+        "zbyt niskie do wymarcia."
+        );
+
+    m_predatorReproductionSpin->setToolTip(
+        "Współczynnik tempa reprodukcji drapieżników.\n"
+        "Analogicznie jak u ofiar – im wyższy, tym częściej się rozmnażają.\n"
+        "Wpływa na presję drapieżnictwa."
+        );
+
+    m_foodRegenerationSpin->setToolTip(
+        "Szybkość odnawiania się jedzenia w krzakach.\n"
+        "Wartość 0.5 oznacza, że każdej rundy krzak odzyskuje 0.5 punktu jedzenia\n"
+        "(maksymalnie do 100). Większa wartość przyspiesza regenerację roślinności,\n"
+        "co wspiera populację roślinożerców."
+        );
+
+    m_waterCoverageSpin->setToolTip(
+        "Pokrycie mapy wodą (w procentach powierzchni).\n"
+        "Wpływa na liczbę i rozmiar zbiorników wodnych.\n"
+        "Więcej wody ułatwia nawadnianie, ale może utrudniać poruszanie się\n"
+        "zwierzętom nieumiejącym pływać."
+        );
+
+    m_bushDensitySpin->setToolTip(
+        "Gęstość krzaków (liczba krzaków na jednostkę powierzchni).\n"
+        "Więcej krzaków = więcej jedzenia dla roślinożerców."
+        );
+
+    m_energyConsumptionSpin->setToolTip(
+        "Współczynnik zużycia energii.\n"
+        "Wartość 1.0 = normalne tempo spadku energii.\n"
+        "Większa wartość powoduje szybsze głodzenie się zwierząt,\n"
+        "co zwiększa presję na poszukiwanie pożywienia i może skrócić czas życia."
+        );
+
+    m_mutationRateSpin->setToolTip(
+        "Stopień mutacji (w procentach).\n"
+        "Określa, jak często geny ulegają zmianie przy reprodukcji.\n"
+        "Wyższe wartości zwiększają różnorodność genetyczną, ale mogą też\n"
+        "prowadzić do niekorzystnych cech. Niskie wartości spowalniają ewolucję."
+        );
+
+    m_initialPreySpin->setToolTip(
+        "Początkowa liczba ofiar przy starcie nowej symulacji.\n"
+        "Wpływa na początkową dynamikę ekosystemu."
+        );
+
+    m_initialPredatorsSpin->setToolTip(
+        "Początkowa liczba drapieżników przy starcie nowej symulacji."
+        );
+
     // Przyciski
     QPushButton *applyButton = new QPushButton("Zastosuj");
     QPushButton *resetButton = new QPushButton("Przywróć domyślne");

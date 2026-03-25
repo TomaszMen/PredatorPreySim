@@ -7,6 +7,7 @@
 #include <QDebug>
 #include <QWheelEvent>
 #include <QMouseEvent>
+#include "herd.h"
 #include <QResizeEvent>
 
 SimulationWidget::SimulationWidget(QWidget *parent)
@@ -56,9 +57,20 @@ SimulationWidget::SimulationWidget(QWidget *parent)
 
 SimulationWidget::~SimulationWidget()
 {
+    m_isCleaningUp = true;
+
+    // Najpierw wyczyść stada
+    qDeleteAll(m_herds);
+    m_herds.clear();
+
+    // Potem usuń organizmy
     qDeleteAll(m_prey);
     qDeleteAll(m_predators);
     qDeleteAll(m_environment);
+
+    m_prey.clear();
+    m_predators.clear();
+    m_environment.clear();
 }
 
 void SimulationWidget::initializeSimulation()
@@ -66,7 +78,9 @@ void SimulationWidget::initializeSimulation()
     qDeleteAll(m_prey);
     qDeleteAll(m_predators);
     qDeleteAll(m_environment);
+    qDeleteAll(m_herds);
 
+    m_herds.clear();
     m_prey.clear();
     m_predators.clear();
     m_environment.clear();
@@ -95,23 +109,33 @@ void SimulationWidget::generateEnvironment()
 {
     QRandomGenerator *rand = QRandomGenerator::global();
 
-    // Generuj jeziora (woda)
-    for (int i = 0; i < 5; ++i) {
-        float radius = 50 + rand->bounded(100);
+    // Generuj jeziora (zwiększona liczba)
+    for (int i = 0; i < 20; ++i) {
+        float radius = 40 + rand->bounded(80);
         QPointF position(rand->bounded(3000), rand->bounded(2000));
         m_environment.append(new Environment(position, Environment::WATER, radius));
     }
 
-    // Generuj rzekę
-    for (int i = 0; i < 10; ++i) {
-        float radius = 20 + rand->bounded(30);
-        QPointF position(200 + i * 160, 400 + rand->bounded(200) - 100);
-        m_environment.append(new Environment(position, Environment::WATER, radius));
+    // Generuj rzekę – ciągłą
+    int riverSegments = 15;
+    QPointF currentPos(rand->bounded(3000), rand->bounded(2000));
+    for (int i = 0; i < riverSegments; ++i) {
+        float radius = 25 + rand->bounded(30);
+        m_environment.append(new Environment(currentPos, Environment::WATER, radius));
+
+        // Przesuń się w losowym kierunku, ale z zachowaniem ciągłości
+        float angle = rand->bounded(360) * M_PI / 180.0f;
+        float step = radius * 0.8f;  // następny segment nachodzi na poprzedni
+        currentPos += QPointF(qCos(angle) * step, qSin(angle) * step);
+
+        // Trzymaj w granicach mapy
+        currentPos.setX(qBound(0.0f, currentPos.x(), 3000.0f));
+        currentPos.setY(qBound(0.0f, currentPos.y(), 2000.0f));
     }
 
     // Generuj krzaki (jedzenie)
-    for (int i = 0; i < 50; ++i) {
-        float size = 10 + rand->bounded(20);
+    for (int i = 0; i < 100; ++i) {
+        float size = 14 + rand->bounded(20);
         QPointF position(rand->bounded(3000), rand->bounded(2000));
 
         // Unikaj umieszczania krzaków w wodzie
@@ -146,7 +170,7 @@ void SimulationWidget::addPrey(int count)
         QPointF position;
         int attempts = 0;
         do {
-            position = QPointF(rand->bounded(2000), rand->bounded(1500));
+            position = QPointF(rand->bounded(3000), rand->bounded(2000));
             attempts++;
 
             bool inWater = false;
@@ -178,7 +202,7 @@ void SimulationWidget::addPredator(int count)
         float size = 6.0f + (rand->bounded(100) / 10.0f);
         float vision = 60.0f + rand->bounded(120);
 
-        QPointF position(rand->bounded(2000), rand->bounded(1500));
+        QPointF position(rand->bounded(3000), rand->bounded(2000));
         Predator *predator = new Predator(position, speed, size, vision);
         m_predators.append(predator);
     }
@@ -226,7 +250,7 @@ void SimulationWidget::paintEvent(QPaintEvent *event)
             // Rysuj krzak z poziomem jedzenia
             float foodRatio = env->foodLevel() / 100.0f;
             QColor bushColor = env->color();
-            bushColor.setAlpha(100 + (int)(155 * foodRatio));
+            bushColor.setAlpha(100 + (int)(100 * foodRatio));
             painter.setBrush(bushColor);
 
             painter.drawEllipse(env->position(), env->size(), env->size());
@@ -332,47 +356,67 @@ void SimulationWidget::updateSimulation()
 {
     m_generation++;
 
-    // Aktualizuj środowisko
-    updateEnvironment();
+    // Zaktualizuj środowisko z mutexem
+    updateEnvironmentSafe();
+
+    // Weź SNAPSHOT (kopię) środowiska - to kluczowe!
+    QVector<Environment*> envSnapshot = getEnvironmentSnapshot();
 
     // Przygotuj listy dla AI
     QVector<Organism*> allPrey;
     QVector<Organism*> allPredators;
 
     for (Prey* prey : m_prey) {
-        allPrey.append(prey);
+        if (prey && prey->energy() > 0) {
+            allPrey.append(prey);
+        }
     }
     for (Predator* predator : m_predators) {
-        allPredators.append(predator);
+        if (predator && predator->energy() > 0) {
+            allPredators.append(predator);
+        }
     }
 
-    // Aktualizuj drapieżniki
-    for (Predator *predator : m_predators) {
-        if (predator->energy() > 0) {
+    // Ustaw SNAPSHOT (kopię) dla wszystkich organizmów
+    for (Prey* prey : m_prey) {
+        if (prey && prey->energy() > 0) {
+            prey->setEnvironment(envSnapshot);  // Kopia!
+            prey->setAvailablePrey(allPrey);
+            prey->setAvailablePredators(allPredators);
+        }
+    }
+
+    for (Predator* predator : m_predators) {
+        if (predator && predator->energy() > 0) {
+            predator->setEnvironment(envSnapshot);  // Kopia!
             predator->setAvailablePrey(allPrey);
             predator->setAvailablePredators(allPredators);
-            predator->setEnvironment(m_environment);
+        }
+    }
+
+    // Aktualizuj organizmy
+    for (Predator* predator : m_predators) {
+        if (predator && predator->energy() > 0) {
             predator->update();
         }
     }
 
-    // Aktualizuj ofiary
-    for (Prey *prey : m_prey) {
-        if (prey->energy() > 0) {
-            prey->setAvailablePrey(allPrey);
-            prey->setAvailablePredators(allPredators);
-            prey->setEnvironment(m_environment);
+    for (Prey* prey : m_prey) {
+        if (prey && prey->energy() > 0) {
             prey->update();
         }
     }
 
-    // Usuń martwe organizmy
+    // Usuń martwe
     removeDeadOrganisms();
 
     // Reprodukcja
     reproduceOrganisms();
 
-    // Aktualizuj statystyki
+    // Aktualizuj stada
+    updateHerds();
+
+    // Statystyki
     updateStatistics();
 
     update();
@@ -380,8 +424,10 @@ void SimulationWidget::updateSimulation()
 
 void SimulationWidget::updateEnvironment()
 {
+    QMutexLocker locker(&m_envMutex);
+
     for (Environment* env : m_environment) {
-        if (env->type() == Environment::BUSH) {
+        if (env && env->type() == Environment::BUSH) {
             env->regenerateFood(m_foodRegenerationRate * 0.1f);
         }
     }
@@ -391,31 +437,72 @@ void SimulationWidget::removeDeadOrganisms()
 {
     int deaths = 0;
 
-    auto preyIt = m_prey.begin();
-    while (preyIt != m_prey.end()) {
-        if ((*preyIt)->energy() <= 0 || (*preyIt)->hydration() <= 0 || (*preyIt)->age() > 10000) {   // ← 1200 zamiast 800
-            delete *preyIt;
-            preyIt = m_prey.erase(preyIt);
-            deaths++;
-        } else {
-            ++preyIt;
+    // Zamiast usuwać od razu, dodaj do listy oczekujących
+    for (int i = m_prey.size() - 1; i >= 0; --i) {
+        Prey* prey = m_prey[i];
+        if (!prey || prey->energy() <= 0 || prey->hydration() <= 0 || prey->age() > 10000) {
+            if (prey) {
+                // Odłącz od stada PRZED dodaniem do listy oczekujących
+                if (prey->getHerd()) {
+                    prey->getHerd()->removeMember(prey);
+                    prey->setHerd(nullptr);
+                }
+                m_pendingPreyRemoval.append(prey);
+                m_prey.removeAt(i);
+                deaths++;
+            }
         }
     }
 
-    auto predatorIt = m_predators.begin();
-    while (predatorIt != m_predators.end()) {
-        if ((*predatorIt)->energy() <= 0 || (*predatorIt)->hydration() <= 0 || (*predatorIt)->age() > 7000) {   // ← 1000 zamiast 600
-            delete *predatorIt;
-            predatorIt = m_predators.erase(predatorIt);
-            deaths++;
-        } else {
-            ++predatorIt;
+    for (int i = m_predators.size() - 1; i >= 0; --i) {
+        Predator* predator = m_predators[i];
+        if (!predator || predator->energy() <= 0 || predator->hydration() <= 0 || predator->age() > 7000) {
+            if (predator) {
+                m_pendingPredatorRemoval.append(predator);
+                m_predators.removeAt(i);
+                deaths++;
+            }
         }
     }
 
     m_totalDeaths += deaths;
     m_deathHistory.append(deaths);
     if (m_deathHistory.size() > 1000) m_deathHistory.removeFirst();
+
+    // Przetwórz oczekujące usunięcia
+    processPendingRemovals();
+}
+
+void SimulationWidget::processPendingRemovals()
+{
+    // Bezpieczne usuwanie - najpierw ustaw flagę
+    m_isCleaningUp = true;
+
+    // Usuń oczekujące ofiary
+    for (Prey* prey : m_pendingPreyRemoval) {
+        if (prey) {
+            delete prey;
+        }
+    }
+    m_pendingPreyRemoval.clear();
+
+    // Usuń oczekujące drapieżniki
+    for (Predator* predator : m_pendingPredatorRemoval) {
+        if (predator) {
+            delete predator;
+        }
+    }
+    m_pendingPredatorRemoval.clear();
+
+    // Usuń oczekujące elementy środowiska
+    for (Environment* env : m_pendingEnvironmentRemoval) {
+        if (env) {
+            delete env;
+        }
+    }
+    m_pendingEnvironmentRemoval.clear();
+
+    m_isCleaningUp = false;
 }
 
 void SimulationWidget::reproduceOrganisms()
@@ -564,6 +651,9 @@ void SimulationWidget::setSimulationParameters(float preyReproduction, float pre
     m_energyConsumptionRate = energyConsumption;
     m_mutationRate = mutationRate;
 
+    Organism::setGlobalParameters(energyConsumption, mutationRate,
+                                  preyReproduction, predatorReproduction);
+
     // Można dodać ustawianie parametrów organizmów
     Q_UNUSED(initialPrey);
     Q_UNUSED(initialPredators);
@@ -650,5 +740,135 @@ void SimulationWidget::resizeEvent(QResizeEvent *event)
         m_startButton->setGeometry(startX, startY, buttonWidth, buttonHeight);
         m_pauseButton->setGeometry(startX + buttonWidth + spacing, startY, buttonWidth, buttonHeight);
         m_resetButton->setGeometry(startX + (buttonWidth + spacing) * 2, startY, buttonWidth, buttonHeight);
+    }
+}
+
+void SimulationWidget::updateHerds()
+{
+    // Usuń puste stada
+    for (int i = m_herds.size() - 1; i >= 0; --i) {
+        if (m_herds[i]->getSize() < 2) {
+            // Jeśli ofiara została sama, usuń stado
+            QVector<Prey*> members = m_herds[i]->getMembers();
+            for (Prey* prey : members) {
+                prey->setHerd(nullptr);
+            }
+            delete m_herds[i];
+            m_herds.removeAt(i);
+        } else {
+            m_herds[i]->update();
+        }
+    }
+
+    // Przypisz ofiary do stad (co pewien czas)
+    if (m_generation % 100 == 0) {
+        assignPreyToHerds();
+    }
+}
+
+void SimulationWidget::assignPreyToHerds()
+{
+    // Nie twórz nowych stad podczas czyszczenia
+    if (m_isCleaningUp) {
+        return;
+    }
+
+    qDebug() << "assignPreyToHerds START";
+
+    // Bezpieczne usuwanie ze stad - używaj kopii listy
+    QVector<Prey*> preyCopy = m_prey;
+    for (Prey* prey : preyCopy) {
+        if (prey && prey->getHerd()) {
+            Herd* oldHerd = prey->getHerd();
+            if (oldHerd) {
+                oldHerd->removeMember(prey);
+            }
+            prey->setHerd(nullptr);
+        }
+    }
+
+    // Wyczyść stare stada
+    qDeleteAll(m_herds);
+    m_herds.clear();
+
+    // Grupuj tylko żywe ofiary
+    QVector<Prey*> unassigned;
+    for (Prey* prey : m_prey) {
+        if (prey && prey->energy() > 0) {
+            unassigned.append(prey);
+        }
+    }
+
+    while (!unassigned.isEmpty()) {
+        Prey* start = unassigned.takeFirst();
+        if (!start || start->energy() <= 0) continue;
+
+        QVector<Prey*> herdMembers;
+        herdMembers.append(start);
+
+        for (int i = unassigned.size() - 1; i >= 0; --i) {
+            Prey* other = unassigned[i];
+            if (!other || other->energy() <= 0) {
+                unassigned.removeAt(i);
+                continue;
+            }
+
+            float dx = start->position().x() - other->position().x();
+            float dy = start->position().y() - other->position().y();
+            float distance = qSqrt(dx * dx + dy * dy);
+
+            if (distance < 150.0f) {
+                herdMembers.append(other);
+                unassigned.removeAt(i);
+            }
+        }
+
+        if (herdMembers.size() >= 2) {
+            Herd* herd = new Herd(this);
+            for (Prey* prey : herdMembers) {
+                if (prey && prey->energy() > 0) {
+                    herd->addMember(prey);
+                    prey->setHerd(herd);
+                }
+            }
+            m_herds.append(herd);
+        }
+    }
+
+    qDebug() << "assignPreyToHerds END - herds:" << m_herds.size();
+}
+
+void SimulationWidget::addEnvironmentSafe(Environment* env)
+{
+    QMutexLocker locker(&m_envMutex);
+    m_environment.append(env);
+}
+
+void SimulationWidget::removeEnvironmentSafe(Environment* env)
+{
+    QMutexLocker locker(&m_envMutex);
+    m_environment.removeOne(env);
+}
+
+QVector<Environment*> SimulationWidget::getEnvironmentCopy() const
+{
+    QMutexLocker locker(&m_envMutex);
+    return m_environment;
+}
+
+QVector<Environment*> SimulationWidget::getEnvironmentSnapshot() const
+{
+    QMutexLocker locker(&m_envMutex);
+    return m_environment;  // Zwraca kopię
+}
+
+void SimulationWidget::updateEnvironmentSafe()
+{
+    QMutexLocker locker(&m_envMutex);
+
+    for (Environment* env : m_environment) {
+        if (env && env->type() == Environment::BUSH) {
+            env->regenerateFood(m_foodRegenerationRate * 0.1f);
+        }
     }
 }

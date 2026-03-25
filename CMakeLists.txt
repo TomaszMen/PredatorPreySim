@@ -17,6 +17,7 @@ add_executable(PredatorPreySimulation
     prey.h prey.cpp
     predator.h predator.cpp
     environment.h environment.cpp
+    herd.h herd.cpp
 )
 
 target_link_libraries(PredatorPreySimulation

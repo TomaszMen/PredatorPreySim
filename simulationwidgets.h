@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <QVector>
 #include <QPointF>
+#include <qmutex.h>
 #include "prey.h"
 #include "predator.h"
 #include "environment.h"
@@ -92,10 +93,35 @@ private:
     float m_energyConsumptionRate;
     float m_mutationRate;
 
+    float m_globalPreyReproductionFactor;
+    float m_globalPredatorReproductionFactor;
+    float m_globalEnergyConsumptionFactor;
+    float m_globalMutationRate;
+
     // Kontrolki
     QPushButton *m_startButton;
     QPushButton *m_pauseButton;
     QPushButton *m_resetButton;
+
+    QVector<Herd*> m_herds;
+
+    void updateHerds();
+    void assignPreyToHerds();
+    bool m_isCleaningUp = false;
+
+    mutable QMutex m_envMutex;
+    QVector<Environment*> getEnvironmentSnapshot() const;
+    void updateEnvironmentSafe();
+
+    QVector<Prey*> m_pendingPreyRemoval;
+    QVector<Predator*> m_pendingPredatorRemoval;
+    QVector<Environment*> m_pendingEnvironmentRemoval;
+
+    void processPendingRemovals();
+
+    void addEnvironmentSafe(Environment* env);
+    void removeEnvironmentSafe(Environment* env);
+    QVector<Environment*> getEnvironmentCopy() const;
 };
 
 #endif // SIMULATIONWIDGET_H
