@@ -108,7 +108,6 @@ QPointF Organism::avoidWater()
             float distance = qSqrt(dx * dx + dy * dy);
 
             if (distance < m_visionRange * 1.5f) {
-                // Im bliżej wody, tym silniejsze unikanie
                 float weight = 1.0f - (distance / (m_visionRange * 1.5f));
                 QPointF dir(-dx, -dy);
                 float len = qSqrt(dir.x() * dir.x() + dir.y() * dir.y());
@@ -278,7 +277,6 @@ void Organism::moveTowards(const QPointF &target, float weight)
     if (distance > 0) {
         direction /= distance;
         m_direction = m_direction * (1.0f - weight) + direction * weight;
-        // Normalizuj
         float length = qSqrt(m_direction.x() * m_direction.x() + m_direction.y() * m_direction.y());
         if (length > 0) {
             m_direction /= length;
@@ -313,7 +311,6 @@ void Organism::wander()
 
 void Organism::applyBoundaries()
 {
-    // Granice świata (powiększony świat)
     float worldWidth = 3000;
     float worldHeight = 2000;
     if (m_position.x() < 0) {
@@ -336,11 +333,10 @@ void Organism::applyBoundaries()
 
 float Organism::calculateFitness() const
 {
-    // Fitness do selekcji naturalnej
     float fitness = 0;
     fitness += m_speed * 0.3f;
     fitness += m_visionRange * 0.2f;
-    fitness += (200.0f - m_size) * 0.1f; // Mniejsze organizmy mają przewagę
+    fitness += (200.0f - m_size) * 0.1f;
     fitness += m_energy * 0.4f;
     return fitness;
 }
