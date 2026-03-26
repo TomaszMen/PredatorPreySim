@@ -49,8 +49,7 @@ public:
 
     bool canMate() const {
         return m_energy > 120 && m_hydration > 60 &&
-               m_age > 50 && m_age < 500 &&
-               !m_justReproduced;
+               m_age > 150 && !m_justReproduced;
     }
 
     bool isInWater() const;

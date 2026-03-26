@@ -12,6 +12,7 @@ Herd::Herd(QObject *parent)
     , m_updateCounter(0)
     , m_targetPersistenceCounter(0)
     , m_targetPosition(-1, -1)
+    , m_idleTicks(0)  // DODANE: inicjalizacja licznika bezruchu
 {
 }
 
@@ -60,15 +61,32 @@ void Herd::update()
         if (!m_alpha) return;
     }
 
+    // DODANE: śledzenie bezruchu alfy
+    static QPointF lastAlphaPos = m_alpha->position();
+    if ((lastAlphaPos - m_alpha->position()).manhattanLength() < 1.0f) {
+        m_idleTicks++;
+    } else {
+        m_idleTicks = 0;
+        lastAlphaPos = m_alpha->position();
+    }
+
     m_updateCounter++;
     m_targetPersistenceCounter++;
+
+    // DODANE: wymuszona zmiana celu przy zbyt długim bezruchu
+    if (m_idleTicks > IDLE_THRESHOLD && hasTarget()) {
+        chooseNewTarget(true); // wymuszona zmiana
+        m_idleTicks = 0;
+    }
 
     if (isTargetReached()) {
         emit targetReached();
         chooseNewTarget();
+        m_idleTicks = 0;  // DODANE: reset przy osiągnięciu celu
     }
     else if (m_targetPersistenceCounter >= TARGET_PERSISTENCE) {
         chooseNewTarget();
+        m_idleTicks = 0;  // DODANE: reset przy zmianie celu z powodu upływu czasu
     }
 
     if (hasTarget() && m_alpha && m_alpha->energy() > 0) {
@@ -80,15 +98,33 @@ void Herd::update()
     emit herdMoved(getCenter());
 }
 
-void Herd::chooseNewTarget()
+// ZMODYFIKOWANA: dodany parametr force
+void Herd::chooseNewTarget(bool force)
 {
     if (!m_alpha || m_alpha->energy() <= 0) {
         return;
     }
 
+    // DODANE: wymuszona zmiana celu - eksploracja nowego terenu
+    if (force) {
+        QRandomGenerator* rand = QRandomGenerator::global();
+        float angle = rand->bounded(360) * M_PI / 180.0f;
+        float distance = 300 + rand->bounded(400); // 300-700 pikseli dalej
+        m_targetPosition = m_alpha->position() + QPointF(cos(angle) * distance, sin(angle) * distance);
+
+        // Ogranicz do granic świata
+        m_targetPosition.setX(qBound(0.0f, m_targetPosition.x(), 3000.0f));
+        m_targetPosition.setY(qBound(0.0f, m_targetPosition.y(), 2000.0f));
+
+        m_targetEnvironment = nullptr;
+        m_targetPersistenceCounter = 0;
+        return;
+    }
+
+    // Istniejąca logika wyboru celu na podstawie potrzeb alfy
     QRandomGenerator* rand = QRandomGenerator::global();
 
-    // Hierarchia potrzeb alfy - z zabezpieczeniem przed nullptr
+    // Hierarchia potrzeb alfy
     if (m_alpha->energy() < 80.0f) {
         Environment* bush = m_alpha->findNearestBush();
         if (bush) {
@@ -138,6 +174,7 @@ void Herd::setTargetPosition(const QPointF& target)
     m_targetPosition = target;
     m_targetEnvironment = nullptr;
     m_targetPersistenceCounter = 0;
+    m_idleTicks = 0;  // DODANE: reset licznika przy ręcznym ustawieniu celu
 }
 
 void Herd::setTargetEnvironment(Environment* target)
@@ -147,6 +184,7 @@ void Herd::setTargetEnvironment(Environment* target)
         m_targetPosition = target->position();
     }
     m_targetPersistenceCounter = 0;
+    m_idleTicks = 0;  // DODANE: reset licznika przy ręcznym ustawieniu celu
 }
 
 void Herd::clearTarget()

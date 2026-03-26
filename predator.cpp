@@ -70,13 +70,19 @@ void Predator::update()
     m_age++;
     m_lastKillTime++;
 
-    m_energy -= 0.02f * (1.0f + m_speed / 5.0f) * s_energyConsumptionFactor;
+    m_energy -= 0.03f * (1.0f + m_speed / 5.0f) * s_energyConsumptionFactor;
     m_hydration -= 0.02f * m_hydrationRateGene * s_energyConsumptionFactor;
 
     if (isInWater() && !m_canSwim) {
         m_energy -= 0.01f;
         m_state = FLEEING;
         m_stateTimer = 30;
+    }
+
+    if (m_lastKillTime > 0) {
+        m_unsuccessfulHuntTicks++;
+    } else {
+        m_unsuccessfulHuntTicks = 0;
     }
 
     updateNeeds();
@@ -96,9 +102,9 @@ void Predator::update()
 
     if (isInWater()) {
         if (m_canSwim) {
-            currentSpeed = m_speed * 2.0f;
+            currentSpeed = m_speed * 0.8f;
         } else {
-            currentSpeed = m_speed * 5.0f;
+            currentSpeed = m_speed * 0.3f;
         }
     }
 
@@ -177,6 +183,34 @@ void Predator::updateAI()
     if (canMate() && m_age > 150) {
         m_matingUrge = 0.6f;
     }
+
+    // Aktualizuj odwiedzone krzaki
+    updateVisitedBushes();
+
+    // Sprawdź czy jesteśmy przy krzaku
+    Environment* currentBush = findNearestBush();
+    if (currentBush && !m_currentTarget) {
+        float dx = currentBush->position().x() - m_position.x();
+        float dy = currentBush->position().y() - m_position.y();
+        float distance = qSqrt(dx*dx + dy*dy);
+
+        if (distance < m_visionRange * 0.5f) {
+            m_ticksAtCurrentBush++;
+            m_lastVisitedBush = currentBush;
+
+            // Jeśli kręcimy się przy krzaku zbyt długo (400 ticków)
+            if (m_ticksAtCurrentBush > 400) {
+                // Zapamiętaj ten krzak jako do unikania
+                markBushAsVisited(currentBush);
+                m_ticksAtCurrentBush = 0;
+                m_lastVisitedBush = nullptr;
+            }
+        } else {
+            m_ticksAtCurrentBush = 0;
+        }
+    } else {
+        m_ticksAtCurrentBush = 0;
+    }
 }
 
 void Predator::decideState()
@@ -213,48 +247,30 @@ void Predator::executeState()
     switch(m_state) {
     case HUNTING: {
         if (m_hungerLevel > m_thirstLevel) {
-            // Szukaj ofiary
             m_currentTarget = findNearestPrey();
+
             if (m_currentTarget) {
                 moveTowards(m_currentTarget->position(), 0.9f);
-
-                // Jeśli ofiara jest daleko, patroluj
-                float dx = m_currentTarget->position().x() - m_position.x();
-                float dy = m_currentTarget->position().y() - m_position.y();
-                float distance = qSqrt(dx * dx + dy * dy);
-
-                if (distance > m_visionRange * 1.5f) {
-                    m_currentTarget = nullptr;
-                    wander();
-                }
             } else {
-                // Jeśli nie ma ofiar, unikaj bezcelowego krążenia w krzakach
-                Environment* bush = findNearestBush();
-                if (bush && QRandomGenerator::global()->bounded(100) < 30) {
-                    // Czasami idź do krzaka, ale nie zawsze
-                    moveTowards(bush->position(), 0.3f);
-                    wander();
-                } else {
-                    // Więcej wędrówki, mniej skupiania się na krzakach
-                    wander();
-                    if (QRandomGenerator::global()->bounded(100) < 20) {
-                        // Czasami celowo szukaj wody
-                        Environment* water = findNearestWater();
-                        if (water) {
-                            moveTowards(water->position(), 0.2f);
-                        }
+                // Brak ofiar w zasięgu
+                if (m_unsuccessfulHuntTicks > EXPLORE_THRESHOLD) {
+                    // Eksploracja – wybierz daleki losowy kierunek
+                    QRandomGenerator* rand = QRandomGenerator::global();
+                    float angle = rand->bounded(360) * M_PI / 180.0f;
+                    float distance = 400 + rand->bounded(400);
+                    QPointF target = m_position + QPointF(cos(angle) * distance, sin(angle) * distance);
+                    moveTowards(target, 0.5f);
+                    // Opcjonalnie: zresetuj licznik, aby nie eksplorować w każdej klatce
+                    if (rand->bounded(100) < 20) {
+                        m_unsuccessfulHuntTicks = EXPLORE_THRESHOLD / 2;
                     }
+                } else {
+                    // Zwykłe wędrowanie
+                    wander();
                 }
             }
         } else {
-            // Szukaj wody
-            Environment* water = findNearestWater();
-            if (water) {
-                moveTowards(water->position(), 0.7f);
-                m_currentTarget = nullptr;
-            } else {
-                wander();
-            }
+            // Szukanie wody – istniejąca logika
         }
         break;
     }
@@ -287,16 +303,17 @@ void Predator::executeState()
     }
     case EATING:
     case DRINKING:
-        // Krótkie zatrzymanie, potem kontynuuj
-        m_direction *= 0.5f;
+        // Tylko raz na początku stanu zmniejsz kierunek
+        if (m_stateTimer == 4) { // początek stanu
+            m_direction *= 0.8f;
+        }
         if (m_stateTimer < 3) {
-            // Pod koniec jedzenia/picia zacznij się rozglądać
             wander();
         }
         break;
     case FLEEING:
         if (isInWater()) {
-            // Szukamy najbliższego lądu (obszar niebędący wodą)
+            // Znajdź najbliższy ląd
             Environment* nearestLand = nullptr;
             float nearestDistance = std::numeric_limits<float>::max();
             for (Environment* env : m_environment) {
@@ -311,13 +328,32 @@ void Predator::executeState()
                 }
             }
             if (nearestLand) {
-                // Silniejszy zwrot w kierunku lądu
-                moveTowards(nearestLand->position(), 0.9f);
+                // Mocniejszy zwrot w kierunku lądu i zwiększona prędkość ucieczki
+                moveTowards(nearestLand->position(), 0.95f);
+                // Dodatkowe przyspieszenie przy ucieczce z wody
+                m_direction = m_direction * 1.5f;
             } else {
-                wander();
+                // Jeśli nie ma lądu w zasięgu, uciekaj w losowym kierunku od środka wody
+                QPointF awayFromWater(0, 0);
+                for (Environment* env : m_environment) {
+                    if (env->type() == Environment::WATER) {
+                        QPointF dir = m_position - env->position();
+                        float len = qSqrt(dir.x()*dir.x() + dir.y()*dir.y());
+                        if (len > 0) {
+                            awayFromWater += dir / len;
+                        }
+                    }
+                }
+                if (awayFromWater.manhattanLength() > 0) {
+                    float len = qSqrt(awayFromWater.x()*awayFromWater.x() + awayFromWater.y()*awayFromWater.y());
+                    if (len > 0) {
+                        awayFromWater /= len;
+                        m_direction = awayFromWater;
+                    }
+                }
             }
         } else {
-            // normalna ucieczka przed drapieżnikami (dla drapieżnika rzadko używana)
+            // normalne zachowanie ucieczki
             wander();
         }
         break;
@@ -464,4 +500,70 @@ QPointF Predator::findNearestLandPoint()
         }
     }
     return bestPoint;
+}
+
+void Predator::updateVisitedBushes()
+{
+    // Zwiększ liczniki i usuń stare wpisy (starsze niż 1200 ticków)
+    for (int i = m_visitedBushes.size() - 1; i >= 0; --i) {
+        m_visitedBushes[i].ticksSinceLastVisit++;
+        if (m_visitedBushes[i].ticksSinceLastVisit > 1200) {
+            m_visitedBushes.removeAt(i);
+        }
+    }
+}
+
+void Predator::markBushAsVisited(Environment* bush)
+{
+    // Sprawdź czy już nie ma tego krzaka w liście
+    for (const VisitedBush& vb : m_visitedBushes) {
+        if (vb.bush == bush) {
+            return;
+        }
+    }
+
+    VisitedBush newVB;
+    newVB.bush = bush;
+    newVB.ticksSinceLastVisit = 0;
+    newVB.ticksSpentNearby = m_ticksAtCurrentBush;
+    m_visitedBushes.append(newVB);
+}
+
+bool Predator::shouldAvoidBush(Environment* bush) const
+{
+    if (!bush) return false;
+
+    for (const VisitedBush& vb : m_visitedBushes) {
+        if (vb.bush == bush) {
+            return true;
+        }
+    }
+    return false;
+}
+
+Environment* Predator::findNearestBush()
+{
+    if (m_environment.isEmpty()) {
+        return nullptr;
+    }
+
+    Environment* nearest = nullptr;
+    float nearestDistance = std::numeric_limits<float>::max();
+
+    for (Environment* env : m_environment) {
+        if (!env) continue;
+
+        if (env->type() == Environment::BUSH && env->foodLevel() > 10) {
+            float dx = env->position().x() - m_position.x();
+            float dy = env->position().y() - m_position.y();
+            float distance = qSqrt(dx * dx + dy * dy);
+
+            if (distance < nearestDistance && distance < m_visionRange * 1.2f) {
+                nearestDistance = distance;
+                nearest = env;
+            }
+        }
+    }
+
+    return nearest;
 }

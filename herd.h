@@ -41,7 +41,7 @@ signals:
 private:
     void selectNewAlpha();
     float calculateFitness(Prey* prey) const;
-    void chooseNewTarget();
+    void chooseNewTarget(bool force = false);  // DODANE: parametr domyślny
     bool isTargetReached() const;
 
     QVector<Prey*> m_members;
@@ -51,6 +51,10 @@ private:
     int m_updateCounter;
     int m_targetPersistenceCounter;
     static const int TARGET_PERSISTENCE = 500;
+
+    // DODANE: zmienne do śledzenia bezruchu
+    int m_idleTicks;
+    static const int IDLE_THRESHOLD = 400;
 };
 
 #endif // HERD_H

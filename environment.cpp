@@ -13,7 +13,7 @@ Environment::Environment(QPointF position, EnvironmentType type, float size, QOb
         break;
     case BUSH:
         m_color = QColor(34, 139, 34); // Zielony
-        m_maxFood = 100.0f + rand->bounded(100);
+        m_maxFood = 140.0f + rand->bounded(150);
         m_foodLevel = m_maxFood;
         break;
     default:

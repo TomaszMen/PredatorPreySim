@@ -21,11 +21,32 @@ public:
     void updateAI() override;
     bool canSwim() const { return m_canSwim; }
 
+    Environment* findNearestBush();
+
+    // Do zapamiętywania odwiedzonych krzaków
+    struct VisitedBush {
+        Environment* bush;
+        int ticksSinceLastVisit;
+        int ticksSpentNearby;
+    };
+    QVector<VisitedBush> m_visitedBushes;
+    Environment* m_lastVisitedBush;
+    int m_ticksAtCurrentBush;
+    int m_ticksSinceLastKill;
+
+    // Metody pomocnicze
+    void markBushAsVisited(Environment* bush);
+    bool shouldAvoidBush(Environment* bush) const;
+    void updateVisitedBushes();
+
 private:
     void updateNeeds();
     void decideState();
     void executeState();
     QPointF findNearestLandPoint();
+
+    int m_unsuccessfulHuntTicks;
+    static const int EXPLORE_THRESHOLD = 500;
 
     // Specyficzne dla Predator
     Organism* m_mateTarget;

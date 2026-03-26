@@ -440,7 +440,7 @@ void SimulationWidget::removeDeadOrganisms()
     // Zamiast usuwać od razu, dodaj do listy oczekujących
     for (int i = m_prey.size() - 1; i >= 0; --i) {
         Prey* prey = m_prey[i];
-        if (!prey || prey->energy() <= 0 || prey->hydration() <= 0 || prey->age() > 10000) {
+        if (!prey || prey->energy() <= 0 || prey->hydration() <= 0 || prey->age() > 100000) {
             if (prey) {
                 // Odłącz od stada PRZED dodaniem do listy oczekujących
                 if (prey->getHerd()) {
@@ -456,7 +456,7 @@ void SimulationWidget::removeDeadOrganisms()
 
     for (int i = m_predators.size() - 1; i >= 0; --i) {
         Predator* predator = m_predators[i];
-        if (!predator || predator->energy() <= 0 || predator->hydration() <= 0 || predator->age() > 7000) {
+        if (!predator || predator->energy() <= 0 || predator->hydration() <= 0 || predator->age() > 70000) {
             if (predator) {
                 m_pendingPredatorRemoval.append(predator);
                 m_predators.removeAt(i);
