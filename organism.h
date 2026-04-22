@@ -8,7 +8,8 @@
 #include <algorithm>
 #include <QVector>
 #include <qreadwritelock.h>
-#include "environment.h"
+
+class Environment;
 
 class Organism : public QObject
 {
@@ -54,15 +55,35 @@ public:
 
     bool isInWater() const;
 
-    bool isEnvironmentValid() const { return m_environmentValid; }
-
+    // Globalne parametry - istniejące
     static float s_energyConsumptionFactor;
     static float s_mutationRatePercent;
     static float s_preyReproductionFactor;
     static float s_predatorReproductionFactor;
 
+    // NOWE GLOBALNE PARAMETRY
+    static float s_foodRegenerationMultiplier;
+    static int s_bushFoodLimit;
+    static float s_predatorEnergyMultiplier;
+    static float s_preyEnergyMultiplier;
+    static float s_predatorVisionMultiplier;
+    static float s_preyVisionMultiplier;
+
     static void setGlobalParameters(float energyFactor, float mutation,
                                     float preyRepro, float predatorRepro);
+
+    // NOWA METODA DO USTAWIANIA WSZYSTKICH PARAMETRÓW
+    static void setAllGlobalParameters(
+        float foodRegenMult,
+        int bushFoodLimit,
+        float predatorEnergyMult,
+        float preyEnergyMult,
+        float predatorVisionMult,
+        float preyVisionMult,
+        float mutation,
+        float preyRepro,
+        float predatorRepro
+        );
 
     Environment* findNearestWater();
     Environment* findNearestBush();

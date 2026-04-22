@@ -1,6 +1,8 @@
 #include "predator.h"
+#include "environment.h"
 #include <QtMath>
 #include <QDebug>
+#include <qrandom.h>
 
 Predator::Predator(QPointF position, float speed, float size, float vision, QObject *parent)
     : Organism(parent)
@@ -12,7 +14,7 @@ Predator::Predator(QPointF position, float speed, float size, float vision, QObj
     m_color = QColor(255, 0, 0);
     m_speed = speed;
     m_size = size;
-    m_visionRange = vision;
+    m_visionRange = vision * s_predatorVisionMultiplier;
     m_energy = 100.0f;
     m_hydration = 100.0f;
     m_age = 0;
@@ -70,8 +72,9 @@ void Predator::update()
     m_age++;
     m_lastKillTime++;
 
-    m_energy -= 0.03f * (1.0f + m_speed / 5.0f) * s_energyConsumptionFactor;
-    m_hydration -= 0.02f * m_hydrationRateGene * s_energyConsumptionFactor;
+    float energyConsumption = 0.03f * (1.0f + m_speed / 5.0f) * s_predatorEnergyMultiplier;
+    m_energy -= energyConsumption;
+    m_hydration -= 0.02f * m_hydrationRateGene * s_predatorEnergyMultiplier;
 
     if (isInWater() && !m_canSwim) {
         m_energy -= 0.01f;

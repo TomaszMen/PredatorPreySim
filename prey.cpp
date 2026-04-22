@@ -1,6 +1,7 @@
 #include "prey.h"
 #include <QtMath>
 #include <QDebug>
+#include "environment.h"
 #include "herd.h"
 
 Prey::Prey(QPointF position, float speed, float size, float vision, QObject *parent)
@@ -15,7 +16,7 @@ Prey::Prey(QPointF position, float speed, float size, float vision, QObject *par
     m_color = QColor(0, 255, 0);
     m_speed = speed;
     m_size = size;
-    m_visionRange = vision;
+    m_visionRange = vision * s_preyVisionMultiplier;
     m_energy = 100.0f;
     m_hydration = 100.0f;
     m_age = 0;
@@ -71,8 +72,9 @@ void Prey::update()
     m_lastMealTime++;
     m_lastDrinkTime++;
 
-    m_energy -= 0.03f * (1.0f + m_speed / 5.0f) * s_energyConsumptionFactor;
-    m_hydration -= 0.03f * m_hydrationRateGene * s_energyConsumptionFactor;
+    float energyConsumption = 0.03f * (1.0f + m_speed / 5.0f) * s_preyEnergyMultiplier;
+    m_energy -= energyConsumption;
+    m_hydration -= 0.03f * m_hydrationRateGene * s_preyEnergyMultiplier;
 
     if (isInWater() && !m_canSwim) {
         m_energy -= 0.05f;

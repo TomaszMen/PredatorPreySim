@@ -14,9 +14,11 @@ public:
     MainWindow(QWidget *parent = nullptr);
 
 private slots:
-    void handleParametersChanged(float preyReproduction, float predatorReproduction,
-                                 float foodRegeneration, float energyConsumption,
-                                 float mutationRate, int initialPrey, int initialPredators);
+    void handleParametersChanged(
+        float foodRegenMult, int bushFoodLimit,
+        float predatorEnergyMult, float preyEnergyMult,
+        int initialPrey, int initialPredators,
+        float predatorVisionMult, float preyVisionMult);
     void handleStatisticsUpdated(int preyCount, int predatorCount, int generation,
                                  float avgPreySpeed, float avgPredatorSpeed,
                                  float avgPreySize, float avgPredatorSize,

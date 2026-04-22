@@ -6,6 +6,8 @@
 #include <QColor>
 #include <QRandomGenerator>
 
+class Organism;
+
 class Environment : public QObject
 {
     Q_OBJECT
@@ -20,12 +22,10 @@ public:
     float size() const { return m_size; }
     QColor color() const { return m_color; }
 
-    // Dla krzaków
     float foodLevel() const { return m_foodLevel; }
     float consumeFood(float amount);
     void regenerateFood(float rate);
 
-    // Dla wody
     bool isWalkable() const { return m_type == WATER; }
 
 private:
@@ -33,7 +33,7 @@ private:
     EnvironmentType m_type;
     float m_size;
     QColor m_color;
-    float m_foodLevel; // Tylko dla krzaków
+    float m_foodLevel;
     float m_maxFood;
 };
 

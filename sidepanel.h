@@ -5,6 +5,7 @@
 #include <QTabWidget>
 #include <QLabel>
 #include <QtCharts>
+#include <QComboBox>
 
 QT_BEGIN_NAMESPACE
 class QSlider;
@@ -27,19 +28,21 @@ public:
 
 signals:
     void simulationParametersChanged(
-        float preyReproductionRate,
-        float predatorReproductionRate,
-        float foodRegenerationRate,
-        float energyConsumptionRate,
-        float mutationRate,
+        float foodRegenerationMultiplier,
+        int bushFoodLimit,
+        float predatorEnergyMultiplier,
+        float preyEnergyMultiplier,
         int initialPrey,
-        int initialPredators
+        int initialPredators,
+        float predatorVisionMultiplier,
+        float preyVisionMultiplier
         );
     void addPreyRequested(int count);
     void addPredatorRequested(int count);
     void addBushRequested();
     void addWaterRequested();
     void clearAllRequested();
+    void restartSimulationRequested();
 
 public slots:
     void updateStatistics(int preyCount, int predatorCount, int generation,
@@ -79,16 +82,15 @@ private:
     QLineSeries *m_sizeSeries;
     QLineSeries *m_visionSeries;
 
-    // Parametry
-    QDoubleSpinBox *m_preyReproductionSpin;
-    QDoubleSpinBox *m_predatorReproductionSpin;
-    QDoubleSpinBox *m_foodRegenerationSpin;
-    QDoubleSpinBox *m_energyConsumptionSpin;
-    QDoubleSpinBox *m_mutationRateSpin;
+    // NOWE PARAMETRY - ComboBoxy dla mnożników
+    QComboBox *m_foodRegenerationCombo;
+    QSpinBox *m_bushFoodLimitSpin;
+    QComboBox *m_predatorEnergyCombo;
+    QComboBox *m_preyEnergyCombo;
     QSpinBox *m_initialPreySpin;
     QSpinBox *m_initialPredatorsSpin;
-    QDoubleSpinBox *m_waterCoverageSpin;
-    QDoubleSpinBox *m_bushDensitySpin;
+    QComboBox *m_predatorVisionCombo;
+    QComboBox *m_preyVisionCombo;
 
     // Statystyki
     QLabel *m_preyCountLabel;

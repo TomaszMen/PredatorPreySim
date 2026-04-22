@@ -1,4 +1,5 @@
 #include "simulationwidgets.h"
+#include "herd.h"
 #include <QPainter>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -7,7 +8,6 @@
 #include <QDebug>
 #include <QWheelEvent>
 #include <QMouseEvent>
-#include "herd.h"
 #include <QResizeEvent>
 
 SimulationWidget::SimulationWidget(QWidget *parent)
@@ -97,9 +97,9 @@ void SimulationWidget::initializeSimulation()
     // Generuj środowisko
     generateEnvironment();
 
-    // Początkowa populacja
-    addPrey(120);
-    addPredator(15);
+    // Użyj początkowych wartości z parametrów
+    addPrey(m_initialPreyCount);
+    addPredator(m_initialPredatorCount);
 
     m_maxPopulation = m_prey.size() + m_predators.size();
     updateStatistics();
@@ -747,7 +747,7 @@ void SimulationWidget::updateHerds()
 {
     // Usuń puste stada
     for (int i = m_herds.size() - 1; i >= 0; --i) {
-        if (m_herds[i]->getSize() < 2) {
+        if (m_herds[i] ->getSize() < 2) {
             // Jeśli ofiara została sama, usuń stado
             QVector<Prey*> members = m_herds[i]->getMembers();
             for (Prey* prey : members) {
@@ -836,6 +836,30 @@ void SimulationWidget::assignPreyToHerds()
     }
 
     qDebug() << "assignPreyToHerds END - herds:" << m_herds.size();
+}
+
+void SimulationWidget::applyAndRestartSimulation(
+    float foodRegenMult, int bushFoodLimit,
+    float predatorEnergyMult, float preyEnergyMult,
+    int initialPrey, int initialPredators,
+    float predatorVisionMult, float preyVisionMult)
+{
+    // Ustaw globalne parametry
+    Organism::setAllGlobalParameters(
+        foodRegenMult, bushFoodLimit,
+        predatorEnergyMult, preyEnergyMult,
+        predatorVisionMult, preyVisionMult,
+        m_mutationRate, m_preyReproductionRate, m_predatorReproductionRate
+        );
+
+    // Zapisz początkowe wartości
+    m_initialPreyCount = initialPrey;
+    m_initialPredatorCount = initialPredators;
+
+    // Zrestartuj symulację
+    pauseSimulation();
+    initializeSimulation();
+    update();
 }
 
 void SimulationWidget::addEnvironmentSafe(Environment* env)

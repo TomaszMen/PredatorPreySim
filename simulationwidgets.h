@@ -12,6 +12,7 @@
 
 class QPushButton;
 class QVBoxLayout;
+class Herd;
 
 class SimulationWidget : public QWidget
 {
@@ -27,11 +28,15 @@ public slots:
     void resetSimulation();
     void addPrey(int count = 1);
     void addPredator(int count = 1);
-    void addBush();  // DODANE
-    void addWater(); // DODANE
+    void addBush();
+    void addWater();
     void setSimulationParameters(float preyReproduction, float predatorReproduction,
                                  float foodRegeneration, float energyConsumption,
                                  float mutationRate, int initialPrey, int initialPredators);
+    void applyAndRestartSimulation(float foodRegenMult, int bushFoodLimit,
+                                   float predatorEnergyMult, float preyEnergyMult,
+                                   int initialPrey, int initialPredators,
+                                   float predatorVisionMult, float preyVisionMult);
 
 signals:
     void statisticsUpdated(int preyCount, int predatorCount, int generation,
@@ -92,6 +97,10 @@ private:
     float m_predatorReproductionRate;
     float m_energyConsumptionRate;
     float m_mutationRate;
+
+    // NOWE ZMIENNE DO PRZECHOWYWANIA POCZĄTKOWYCH POPULACJI
+    int m_initialPreyCount = 120;
+    int m_initialPredatorCount = 15;
 
     float m_globalPreyReproductionFactor;
     float m_globalPredatorReproductionFactor;
