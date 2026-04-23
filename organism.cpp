@@ -182,7 +182,6 @@ Environment* Organism::findNearestWater()
 
 Environment* Organism::findNearestBush()
 {
-    // Sprawdź czy środowisko jest puste
     if (m_environment.isEmpty()) {
         return nullptr;
     }
@@ -194,13 +193,9 @@ Environment* Organism::findNearestBush()
     for (int i = 0; i < envSize; ++i) {
         Environment* env = m_environment[i];
 
-        // Kluczowe: sprawdź czy wskaźnik jest poprawny
         if (!env) {
             continue;
         }
-
-        // Dodaj sprawdzenie, czy env nie został usunięty
-        // Możemy sprawdzić poprzez typ (jeśli env jest nullptr, to już sprawdziliśmy)
 
         if (env->type() == Environment::BUSH && env->foodLevel() > 10) {
             float dx = env->position().x() - m_position.x();

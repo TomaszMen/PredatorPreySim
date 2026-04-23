@@ -90,6 +90,13 @@ void SimulationWidget::initializeSimulation()
     m_birthHistory.clear();
     m_deathHistory.clear();
 
+    m_preySpeedHistory.clear();
+    m_predatorSpeedHistory.clear();
+    m_preySizeHistory.clear();
+    m_predatorSizeHistory.clear();
+    m_preyVisionHistory.clear();
+    m_predatorVisionHistory.clear();
+
     m_generation = 0;
     m_totalBirths = 0;
     m_totalDeaths = 0;
@@ -103,6 +110,13 @@ void SimulationWidget::initializeSimulation()
 
     m_maxPopulation = m_prey.size() + m_predators.size();
     updateStatistics();
+
+    emit historyUpdated(m_preyHistory, m_predatorHistory);
+    emit evolutionDataUpdated(
+        m_preySpeedHistory, m_predatorSpeedHistory,
+        m_preySizeHistory, m_predatorSizeHistory,
+        m_preyVisionHistory, m_predatorVisionHistory
+        );
 }
 
 void SimulationWidget::generateEnvironment()
@@ -561,23 +575,51 @@ void SimulationWidget::updateStatistics()
     // Oblicz średnie statystyki
     float avgPreySpeed = 0, avgPredatorSpeed = 0;
     float avgPreySize = 0, avgPredatorSize = 0;
+    float avgPreyVision = 0, avgPredatorVision = 0;
 
     for (Prey* prey : m_prey) {
-        avgPreySpeed += prey->speed();
-        avgPreySize += prey->size();
+        if (prey && prey->energy() > 0) {
+            avgPreySpeed += prey->speed();
+            avgPreySize += prey->size();
+            avgPreyVision += prey->visionRange();
+        }
     }
     for (Predator* predator : m_predators) {
-        avgPredatorSpeed += predator->speed();
-        avgPredatorSize += predator->size();
+        if (predator && predator->energy() > 0) {
+            avgPredatorSpeed += predator->speed();
+            avgPredatorSize += predator->size();
+            avgPredatorVision += predator->visionRange();
+        }
     }
 
     if (totalPrey > 0) {
         avgPreySpeed /= totalPrey;
         avgPreySize /= totalPrey;
+        avgPreyVision /= totalPrey;
     }
     if (totalPredators > 0) {
         avgPredatorSpeed /= totalPredators;
         avgPredatorSize /= totalPredators;
+        avgPredatorVision /= totalPredators;
+    }
+
+    // Dodaj do historii ewolucyjnych
+    m_preySpeedHistory.append(avgPreySpeed);
+    m_predatorSpeedHistory.append(avgPredatorSpeed);
+    m_preySizeHistory.append(avgPreySize);
+    m_predatorSizeHistory.append(avgPredatorSize);
+    m_preyVisionHistory.append(avgPreyVision);
+    m_predatorVisionHistory.append(avgPredatorVision);
+
+    // Ogranicz historię ewolucyjną
+    const int MAX_EVOLUTION_HISTORY = 1000;
+    if (m_preySpeedHistory.size() > MAX_EVOLUTION_HISTORY) {
+        m_preySpeedHistory.removeFirst();
+        m_predatorSpeedHistory.removeFirst();
+        m_preySizeHistory.removeFirst();
+        m_predatorSizeHistory.removeFirst();
+        m_preyVisionHistory.removeFirst();
+        m_predatorVisionHistory.removeFirst();
     }
 
     m_maxPopulation = qMax(m_maxPopulation, totalPrey + totalPredators);
@@ -590,6 +632,11 @@ void SimulationWidget::updateStatistics()
 
     if (m_generation % 5 == 0) { // Co 5 generacji aktualizuj wykresy
         emit historyUpdated(m_preyHistory, m_predatorHistory);
+        emit evolutionDataUpdated(
+            m_preySpeedHistory, m_predatorSpeedHistory,
+            m_preySizeHistory, m_predatorSizeHistory,
+            m_preyVisionHistory, m_predatorVisionHistory
+            );
     }
 }
 
@@ -858,6 +905,18 @@ void SimulationWidget::applyAndRestartSimulation(
 
     // Zrestartuj symulację
     pauseSimulation();
+
+    m_preyHistory.clear();
+    m_predatorHistory.clear();
+    m_birthHistory.clear();
+    m_deathHistory.clear();
+    m_preySpeedHistory.clear();
+    m_predatorSpeedHistory.clear();
+    m_preySizeHistory.clear();
+    m_predatorSizeHistory.clear();
+    m_preyVisionHistory.clear();
+    m_predatorVisionHistory.clear();
+
     initializeSimulation();
     update();
 }

@@ -11,20 +11,18 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle("Symulacja Ekosystemu: Drapieznik-Ofiara z Ewolucja");
     setGeometry(100, 100, 1400, 800);
 
-    // Glowne okno symulacji
     m_simulationWidget = new SimulationWidget(this);
     setCentralWidget(m_simulationWidget);
 
-    // Panel boczny
     m_sidePanel = new SidePanel(this);
     m_dockWidget = new QDockWidget("Panel Kontrolny", this);
     m_dockWidget->setWidget(m_sidePanel);
     m_dockWidget->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
     addDockWidget(Qt::RightDockWidgetArea, m_dockWidget);
 
-    // Menu
     QMenu *fileMenu = menuBar()->addMenu("Plik");
     fileMenu->addAction("Nowa symulacja", this, [this]() {
+        m_sidePanel->resetCharts();
         m_simulationWidget->resetSimulation();
     });
     fileMenu->addSeparator();
@@ -42,6 +40,7 @@ MainWindow::MainWindow(QWidget *parent)
         m_simulationWidget->pauseSimulation();
     });
     simulationMenu->addAction("Reset", this, [this]() {
+        m_sidePanel->resetCharts();
         m_simulationWidget->resetSimulation();
     });
     simulationMenu->addSeparator();
@@ -61,14 +60,12 @@ MainWindow::MainWindow(QWidget *parent)
                            "- Kolko myszy: przyblizanie/oddalanie");
     });
 
-    // Polaczenia sygnalow
     connect(m_sidePanel, &SidePanel::simulationParametersChanged,
             this, &MainWindow::handleParametersChanged);
 
     connect(m_sidePanel, &SidePanel::restartSimulationRequested,
             this, [this]() {
-                // Ta lambda zostanie wywolana po nacisnieciu przycisku
-                // Parametry sa juz przekazane przez simulationParametersChanged
+
             });
 
     connect(m_sidePanel, &SidePanel::addPreyRequested,
@@ -81,6 +78,8 @@ MainWindow::MainWindow(QWidget *parent)
             m_simulationWidget, &SimulationWidget::addBush);
     connect(m_sidePanel, &SidePanel::addWaterRequested,
             m_simulationWidget, &SimulationWidget::addWater);
+    connect(m_simulationWidget, &SimulationWidget::evolutionDataUpdated,
+            m_sidePanel, &SidePanel::updateEvolutionCharts);
 
     connect(m_simulationWidget, &SimulationWidget::statisticsUpdated,
             this, &MainWindow::handleStatisticsUpdated);
@@ -96,6 +95,8 @@ void MainWindow::handleParametersChanged(
     int initialPrey, int initialPredators,
     float predatorVisionMult, float preyVisionMult)
 {
+    m_sidePanel->resetCharts();
+
     m_simulationWidget->applyAndRestartSimulation(
         foodRegenMult, bushFoodLimit,
         predatorEnergyMult, preyEnergyMult,

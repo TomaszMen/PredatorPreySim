@@ -61,7 +61,6 @@ public:
     static float s_preyReproductionFactor;
     static float s_predatorReproductionFactor;
 
-    // NOWE GLOBALNE PARAMETRY
     static float s_foodRegenerationMultiplier;
     static int s_bushFoodLimit;
     static float s_predatorEnergyMultiplier;
@@ -72,7 +71,6 @@ public:
     static void setGlobalParameters(float energyFactor, float mutation,
                                     float preyRepro, float predatorRepro);
 
-    // NOWA METODA DO USTAWIANIA WSZYSTKICH PARAMETRÓW
     static void setAllGlobalParameters(
         float foodRegenMult,
         int bushFoodLimit,

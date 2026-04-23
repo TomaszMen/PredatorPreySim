@@ -235,11 +235,9 @@ void Prey::executeState()
         if (predator) {
             moveAwayFrom(predator->position(), 0.8f);
         } else {
-            // Jeśli nie ma drapieżnika, ale uciekaliśmy, wróć do stada
             if (m_herd && m_herd->getAlpha() && !isAlpha()) {
                 followAlpha();
             } else if (m_herd && m_herd->getAlpha() && isAlpha()) {
-                // Alfa wraca do celu
                 if (m_herd->hasTarget()) {
                     moveTowards(m_herd->getTargetPosition(), 0.5f);
                 } else {
@@ -425,27 +423,21 @@ void Prey::followAlpha()
     float dy = alpha->position().y() - m_position.y();
     float distance = qSqrt(dx * dx + dy * dy);
 
-    // Optymalna odległość - większa dla lepszego rozproszenia
     float optimalDistance = m_size + alpha->size() + 40.0f;
 
     if (distance > optimalDistance * 1.3f) {
-        // Za daleko - idź w kierunku alfy
         moveTowards(alpha->position(), 0.35f);
     }
     else if (distance < optimalDistance * 0.7f) {
-        // Za blisko - odejdź, ale nie wokół koła
-        // Odchodź w kierunku prostopadłym do kierunku do alfy
-        QPointF awayDir(-dy, dx);  // Wektor prostopadły
+        QPointF awayDir(-dy, dx);
         float len = qSqrt(awayDir.x() * awayDir.x() + awayDir.y() * awayDir.y());
         if (len > 0) {
             awayDir /= len;
-            // Połącz z kierunkiem ucieczki od alfy
             QPointF fleeFromAlpha = m_position - alpha->position();
             len = qSqrt(fleeFromAlpha.x() * fleeFromAlpha.x() + fleeFromAlpha.y() * fleeFromAlpha.y());
             if (len > 0) {
                 fleeFromAlpha /= len;
             }
-            // Średnia ważona: 70% od alfy, 30% prostopadle
             QPointF finalDir = fleeFromAlpha * 0.7f + awayDir * 0.3f;
             len = qSqrt(finalDir.x() * finalDir.x() + finalDir.y() * finalDir.y());
             if (len > 0) {
@@ -459,14 +451,10 @@ void Prey::followAlpha()
         }
     }
     else {
-        // W optymalnej odległości - utrzymuj kierunek podobny do alfy,
-        // ale z pewną losowością
         float alphaAngle = qAtan2(alpha->direction().y(), alpha->direction().x());
         float myAngle = qAtan2(m_direction.y(), m_direction.x());
 
-        // Nie kopiuj dokładnie, tylko zbliżaj się do kierunku alfy
         float angleDiff = alphaAngle - myAngle;
-        // Ogranicz zmianę kierunku
         float maxTurn = 0.05f;
         if (angleDiff > maxTurn) angleDiff = maxTurn;
         if (angleDiff < -maxTurn) angleDiff = -maxTurn;
@@ -474,7 +462,6 @@ void Prey::followAlpha()
         float newAngle = myAngle + angleDiff * 0.3f;
         m_direction = QPointF(qCos(newAngle), qSin(newAngle));
 
-        // Dodaj losowe fluktuacje dla naturalnego wyglądu
         QRandomGenerator* rand = QRandomGenerator::global();
         if (rand->bounded(100) < 15) {
             float randomAngle = (rand->bounded(40) - 20) * M_PI / 180.0f;

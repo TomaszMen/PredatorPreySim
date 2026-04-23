@@ -14,7 +14,6 @@ Environment::Environment(QPointF position, EnvironmentType type, float size, QOb
         break;
     case BUSH:
         m_color = QColor(34, 139, 34);
-        // Użyj globalnego limitu jedzenia
         m_maxFood = Organism::s_bushFoodLimit + rand->bounded(Organism::s_bushFoodLimit);
         m_foodLevel = m_maxFood;
         break;
@@ -42,11 +41,9 @@ float Environment::consumeFood(float amount)
 void Environment::regenerateFood(float rate)
 {
     if (m_type == BUSH) {
-        // Zastosuj mnożnik regeneracji
         float effectiveRate = rate * Organism::s_foodRegenerationMultiplier;
         m_foodLevel = std::min(m_maxFood, m_foodLevel + effectiveRate);
 
-        // Możliwa regeneracja krzaków
         if (m_foodLevel <= 0 && QRandomGenerator::global()->bounded(1000) < 1) {
             m_foodLevel = m_maxFood * 0.5f;
         }
