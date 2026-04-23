@@ -1,4 +1,5 @@
 #include "organism.h"
+#include "environment.h"
 #include <QRandomGenerator>
 #include <QDebug>
 
@@ -6,6 +7,12 @@ float Organism::s_energyConsumptionFactor = 1.0f;
 float Organism::s_mutationRatePercent = 5.0f;
 float Organism::s_preyReproductionFactor = 1.0f;
 float Organism::s_predatorReproductionFactor = 1.0f;
+float Organism::s_foodRegenerationMultiplier = 1.0f;
+int   Organism::s_bushFoodLimit = 140;
+float Organism::s_predatorEnergyMultiplier = 1.0f;
+float Organism::s_preyEnergyMultiplier = 1.0f;
+float Organism::s_predatorVisionMultiplier = 1.0f;
+float Organism::s_preyVisionMultiplier = 1.0f;
 
 Organism::Organism(QObject *parent)
     : QObject(parent)
@@ -175,7 +182,6 @@ Environment* Organism::findNearestWater()
 
 Environment* Organism::findNearestBush()
 {
-    // Sprawdź czy środowisko jest puste
     if (m_environment.isEmpty()) {
         return nullptr;
     }
@@ -187,13 +193,9 @@ Environment* Organism::findNearestBush()
     for (int i = 0; i < envSize; ++i) {
         Environment* env = m_environment[i];
 
-        // Kluczowe: sprawdź czy wskaźnik jest poprawny
         if (!env) {
             continue;
         }
-
-        // Dodaj sprawdzenie, czy env nie został usunięty
-        // Możemy sprawdzić poprzez typ (jeśli env jest nullptr, to już sprawdziliśmy)
 
         if (env->type() == Environment::BUSH && env->foodLevel() > 10) {
             float dx = env->position().x() - m_position.x();
@@ -348,4 +350,34 @@ void Organism::setGlobalParameters(float energyFactor, float mutation,
     s_mutationRatePercent = mutation;
     s_preyReproductionFactor = preyRepro;
     s_predatorReproductionFactor = predatorRepro;
+}
+
+void Organism::setAllGlobalParameters(
+    float foodRegenMult,
+    int bushFoodLimit,
+    float predatorEnergyMult,
+    float preyEnergyMult,
+    float predatorVisionMult,
+    float preyVisionMult,
+    float mutation,
+    float preyRepro,
+    float predatorRepro)
+{
+    s_foodRegenerationMultiplier = foodRegenMult;
+    s_bushFoodLimit = bushFoodLimit;
+    s_predatorEnergyMultiplier = predatorEnergyMult;
+    s_preyEnergyMultiplier = preyEnergyMult;
+    s_predatorVisionMultiplier = predatorVisionMult;
+    s_preyVisionMultiplier = preyVisionMult;
+    s_mutationRatePercent = mutation;
+    s_preyReproductionFactor = preyRepro;
+    s_predatorReproductionFactor = predatorRepro;
+
+    qDebug() << "Global parameters set:"
+             << "FoodRegen:" << foodRegenMult
+             << "BushLimit:" << bushFoodLimit
+             << "PredEnergy:" << predatorEnergyMult
+             << "PreyEnergy:" << preyEnergyMult
+             << "PredVision:" << predatorVisionMult
+             << "PreyVision:" << preyVisionMult;
 }

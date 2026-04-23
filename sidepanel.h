@@ -5,6 +5,8 @@
 #include <QTabWidget>
 #include <QLabel>
 #include <QtCharts>
+#include <QComboBox>
+#include <QPushButton>
 
 QT_BEGIN_NAMESPACE
 class QSlider;
@@ -12,7 +14,6 @@ class QSpinBox;
 class QDoubleSpinBox;
 class QCheckBox;
 class QGroupBox;
-class QPushButton;
 class QTableWidget;
 QT_END_NAMESPACE
 
@@ -27,19 +28,21 @@ public:
 
 signals:
     void simulationParametersChanged(
-        float preyReproductionRate,
-        float predatorReproductionRate,
-        float foodRegenerationRate,
-        float energyConsumptionRate,
-        float mutationRate,
+        float foodRegenerationMultiplier,
+        int bushFoodLimit,
+        float predatorEnergyMultiplier,
+        float preyEnergyMultiplier,
         int initialPrey,
-        int initialPredators
+        int initialPredators,
+        float predatorVisionMultiplier,
+        float preyVisionMultiplier
         );
     void addPreyRequested(int count);
     void addPredatorRequested(int count);
     void addBushRequested();
     void addWaterRequested();
     void clearAllRequested();
+    void restartSimulationRequested();
 
 public slots:
     void updateStatistics(int preyCount, int predatorCount, int generation,
@@ -47,16 +50,38 @@ public slots:
                           float avgPreySize, float avgPredatorSize,
                           int births, int deaths);
     void updateCharts(const QVector<int> &preyHistory, const QVector<int> &predatorHistory);
+    void resetCharts();
+
+    void updateEvolutionCharts(
+        const QVector<float> &preySpeedHistory,
+        const QVector<float> &predatorSpeedHistory,
+        const QVector<float> &preySizeHistory,
+        const QVector<float> &predatorSizeHistory,
+        const QVector<float> &preyVisionHistory,
+        const QVector<float> &predatorVisionHistory
+        );
 
 private slots:
     void applyParameters();
     void resetToDefaults();
+
+    void exportPopulationChart();
+    void exportPreyEvolutionChart();
+    void exportPredatorEvolutionChart();
 
 private:
     void setupParametersTab();
     void setupChartsTab();
     void setupStatisticsTab();
     void setupControlTab();
+
+    // NOWA METODA POMOCNICZA
+    void setupEvolutionCharts();
+    void exportChartData(const QString &chartName,
+                         const QVector<QPointF> &series1Data,
+                         const QString &series1Name,
+                         const QVector<QPointF> &series2Data = QVector<QPointF>(),
+                         const QString &series2Name = QString());
 
     QTabWidget *m_tabWidget;
 
@@ -66,29 +91,37 @@ private:
     QWidget *m_statisticsTab;
     QWidget *m_controlTab;
 
-    // Wykresy
+    // Wykres populacji
     QChartView *m_chartView;
     QChart *m_chart;
     QLineSeries *m_preySeries;
     QLineSeries *m_predatorSeries;
+    QPushButton *m_exportPopulationButton;
 
-    // Wykres ewolucji
-    QChartView *m_evolutionChartView;
-    QChart *m_evolutionChart;
-    QLineSeries *m_speedSeries;
-    QLineSeries *m_sizeSeries;
-    QLineSeries *m_visionSeries;
+    // Wykres dla ofiar
+    QChartView *m_preyEvolutionChartView;
+    QChart *m_preyEvolutionChart;
+    QLineSeries *m_preySpeedSeries;
+    QLineSeries *m_preySizeSeries;
+    QLineSeries *m_preyVisionSeries;
+    QPushButton *m_exportPreyEvolutionButton;
 
-    // Parametry
-    QDoubleSpinBox *m_preyReproductionSpin;
-    QDoubleSpinBox *m_predatorReproductionSpin;
-    QDoubleSpinBox *m_foodRegenerationSpin;
-    QDoubleSpinBox *m_energyConsumptionSpin;
-    QDoubleSpinBox *m_mutationRateSpin;
+    // Wykres dla drapieżników
+    QChartView *m_predatorEvolutionChartView;
+    QChart *m_predatorEvolutionChart;
+    QLineSeries *m_predatorSpeedSeries;
+    QLineSeries *m_predatorSizeSeries;
+    QLineSeries *m_predatorVisionSeries;
+    QPushButton *m_exportPredatorEvolutionButton;
+
+    QComboBox *m_foodRegenerationCombo;
+    QSpinBox *m_bushFoodLimitSpin;
+    QComboBox *m_predatorEnergyCombo;
+    QComboBox *m_preyEnergyCombo;
     QSpinBox *m_initialPreySpin;
     QSpinBox *m_initialPredatorsSpin;
-    QDoubleSpinBox *m_waterCoverageSpin;
-    QDoubleSpinBox *m_bushDensitySpin;
+    QComboBox *m_predatorVisionCombo;
+    QComboBox *m_preyVisionCombo;
 
     // Statystyki
     QLabel *m_preyCountLabel;

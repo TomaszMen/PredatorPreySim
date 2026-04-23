@@ -1,18 +1,20 @@
 #include "predator.h"
+#include "environment.h"
 #include <QtMath>
 #include <QDebug>
+#include <qrandom.h>
 
 Predator::Predator(QPointF position, float speed, float size, float vision, QObject *parent)
     : Organism(parent)
     , m_mateTarget(nullptr)
-    , m_canSwim(true) // Drapieżniki mogą pływać
+    , m_canSwim(true)
 {
     m_position = position;
     m_type = PREDATOR;
     m_color = QColor(255, 0, 0);
     m_speed = speed;
     m_size = size;
-    m_visionRange = vision;
+    m_visionRange = vision * s_predatorVisionMultiplier;
     m_energy = 100.0f;
     m_hydration = 100.0f;
     m_age = 0;
@@ -22,7 +24,7 @@ Predator::Predator(QPointF position, float speed, float size, float vision, QObj
     m_sizeGene = size / 15.0f;
     m_visionGene = vision / 150.0f;
     m_reproductionRateGene = 1.0f;
-    m_hydrationRateGene = 0.8f; // Drapieżniki wolniej tracą wodę
+    m_hydrationRateGene = 0.8f;
 
     QRandomGenerator *rand = QRandomGenerator::global();
     float angle = rand->bounded(360) * M_PI / 180.0f;
@@ -70,8 +72,9 @@ void Predator::update()
     m_age++;
     m_lastKillTime++;
 
-    m_energy -= 0.03f * (1.0f + m_speed / 5.0f) * s_energyConsumptionFactor;
-    m_hydration -= 0.02f * m_hydrationRateGene * s_energyConsumptionFactor;
+    float energyConsumption = 0.03f * (1.0f + m_speed / 5.0f) * s_predatorEnergyMultiplier;
+    m_energy -= energyConsumption;
+    m_hydration -= 0.02f * m_hydrationRateGene * s_predatorEnergyMultiplier;
 
     if (isInWater() && !m_canSwim) {
         m_energy -= 0.01f;
@@ -129,13 +132,13 @@ void Predator::updateNeeds()
             float distance = qSqrt(dx * dx + dy * dy);
 
             if (distance < m_size + prey->size()) {
-                float energyGained = prey->energy();   // ← 100% zamiast 0.8
+                float energyGained = prey->energy();
                 m_energy += energyGained;
                 m_energy = std::min(200.0f, m_energy);
                 m_lastKillTime = 0;
                 m_currentTarget = nullptr;
 
-                prey->setEnergy(0);   // zabicie ofiary
+                prey->setEnergy(0);
                 m_state = EATING;
                 m_stateTimer = 8;
                 break;
@@ -143,7 +146,6 @@ void Predator::updateNeeds()
         }
     }
 
-    // Sprawdź wodę
     for (Environment* env : m_environment) {
         if (env->type() == Environment::WATER) {
             float dx = env->position().x() - m_position.x();
@@ -184,10 +186,8 @@ void Predator::updateAI()
         m_matingUrge = 0.6f;
     }
 
-    // Aktualizuj odwiedzone krzaki
     updateVisitedBushes();
 
-    // Sprawdź czy jesteśmy przy krzaku
     Environment* currentBush = findNearestBush();
     if (currentBush && !m_currentTarget) {
         float dx = currentBush->position().x() - m_position.x();
@@ -198,9 +198,7 @@ void Predator::updateAI()
             m_ticksAtCurrentBush++;
             m_lastVisitedBush = currentBush;
 
-            // Jeśli kręcimy się przy krzaku zbyt długo (400 ticków)
             if (m_ticksAtCurrentBush > 400) {
-                // Zapamiętaj ten krzak jako do unikania
                 markBushAsVisited(currentBush);
                 m_ticksAtCurrentBush = 0;
                 m_lastVisitedBush = nullptr;
@@ -252,25 +250,21 @@ void Predator::executeState()
             if (m_currentTarget) {
                 moveTowards(m_currentTarget->position(), 0.9f);
             } else {
-                // Brak ofiar w zasięgu
                 if (m_unsuccessfulHuntTicks > EXPLORE_THRESHOLD) {
-                    // Eksploracja – wybierz daleki losowy kierunek
                     QRandomGenerator* rand = QRandomGenerator::global();
                     float angle = rand->bounded(360) * M_PI / 180.0f;
                     float distance = 400 + rand->bounded(400);
                     QPointF target = m_position + QPointF(cos(angle) * distance, sin(angle) * distance);
                     moveTowards(target, 0.5f);
-                    // Opcjonalnie: zresetuj licznik, aby nie eksplorować w każdej klatce
                     if (rand->bounded(100) < 20) {
                         m_unsuccessfulHuntTicks = EXPLORE_THRESHOLD / 2;
                     }
                 } else {
-                    // Zwykłe wędrowanie
                     wander();
                 }
             }
         } else {
-            // Szukanie wody – istniejąca logika
+
         }
         break;
     }
@@ -285,9 +279,7 @@ void Predator::executeState()
             float distance = qSqrt(dx * dx + dy * dy);
 
             if (distance < 30) {
-                // Terytorialne zachowanie - nie kręć się w kółko
                 if (QRandomGenerator::global()->bounded(100) < 50) {
-                    // Czasami oddal się trochę
                     moveAwayFrom(m_mateTarget->position(), 0.3f);
                 } else {
                     wander();
@@ -303,7 +295,6 @@ void Predator::executeState()
     }
     case EATING:
     case DRINKING:
-        // Tylko raz na początku stanu zmniejsz kierunek
         if (m_stateTimer == 4) { // początek stanu
             m_direction *= 0.8f;
         }
@@ -313,7 +304,6 @@ void Predator::executeState()
         break;
     case FLEEING:
         if (isInWater()) {
-            // Znajdź najbliższy ląd
             Environment* nearestLand = nullptr;
             float nearestDistance = std::numeric_limits<float>::max();
             for (Environment* env : m_environment) {
@@ -328,12 +318,9 @@ void Predator::executeState()
                 }
             }
             if (nearestLand) {
-                // Mocniejszy zwrot w kierunku lądu i zwiększona prędkość ucieczki
                 moveTowards(nearestLand->position(), 0.95f);
-                // Dodatkowe przyspieszenie przy ucieczce z wody
                 m_direction = m_direction * 1.5f;
             } else {
-                // Jeśli nie ma lądu w zasięgu, uciekaj w losowym kierunku od środka wody
                 QPointF awayFromWater(0, 0);
                 for (Environment* env : m_environment) {
                     if (env->type() == Environment::WATER) {
@@ -353,14 +340,12 @@ void Predator::executeState()
                 }
             }
         } else {
-            // normalne zachowanie ucieczki
             wander();
         }
         break;
     case WANDERING:
     default:
         wander();
-        // Naturalne zachowanie - czasami idź do wody
         if (m_canSwim && QRandomGenerator::global()->bounded(100) < 5) {
             Environment* water = findNearestWater();
             if (water) {
@@ -372,7 +357,6 @@ void Predator::executeState()
                 }
             }
         }
-        // Czasami sprawdź czy nie ma ofiar w pobliżu
         if (QRandomGenerator::global()->bounded(100) < 10) {
             Organism* nearbyPrey = findNearestPrey();
             if (nearbyPrey && nearbyPrey->energy() > 0) {
@@ -420,7 +404,6 @@ Organism* Predator::findNearestPrey()
             float dy = prey->position().y() - m_position.y();
             float distance = qSqrt(dx * dx + dy * dy);
 
-            // Drapieżniki mogą polować przez płytką wodę
             bool canReach = true;
             if (isInWater() && !m_canSwim) {
                 canReach = false;
@@ -463,19 +446,17 @@ Organism* Predator::reproduce()
 
 QPointF Predator::findNearestLandPoint()
 {
-    float step = 15.0f;                     // krok przeszukiwania
-    float maxRadius = m_visionRange * 1.5f; // maksymalny promień szukania
+    float step = 15.0f;
+    float maxRadius = m_visionRange * 1.5f;
     QPointF bestPoint = m_position;
     float bestDistSq = std::numeric_limits<float>::max();
 
-    // Sprawdzamy 16 kierunków
     for (float angle = 0; angle < 2 * M_PI; angle += M_PI / 8) {
         QPointF dir(std::cos(angle), std::sin(angle));
         for (float r = step; r <= maxRadius; r += step) {
             QPointF testPoint = m_position + dir * r;
             bool inWater = false;
 
-            // Sprawdzamy, czy testPoint znajduje się w jakimś zbiorniku wodnym
             for (Environment* env : m_environment) {
                 if (env->type() == Environment::WATER) {
                     float dx = env->position().x() - testPoint.x();
@@ -489,13 +470,12 @@ QPointF Predator::findNearestLandPoint()
             }
 
             if (!inWater) {
-                // Znaleziono ląd – zapamiętujemy najbliższy punkt
                 float distSq = r * r;
                 if (distSq < bestDistSq) {
                     bestDistSq = distSq;
                     bestPoint = testPoint;
                 }
-                break; // dla tego kierunku już mamy pierwszy punkt na lądzie
+                break;
             }
         }
     }
@@ -504,7 +484,6 @@ QPointF Predator::findNearestLandPoint()
 
 void Predator::updateVisitedBushes()
 {
-    // Zwiększ liczniki i usuń stare wpisy (starsze niż 1200 ticków)
     for (int i = m_visitedBushes.size() - 1; i >= 0; --i) {
         m_visitedBushes[i].ticksSinceLastVisit++;
         if (m_visitedBushes[i].ticksSinceLastVisit > 1200) {
@@ -515,7 +494,6 @@ void Predator::updateVisitedBushes()
 
 void Predator::markBushAsVisited(Environment* bush)
 {
-    // Sprawdź czy już nie ma tego krzaka w liście
     for (const VisitedBush& vb : m_visitedBushes) {
         if (vb.bush == bush) {
             return;

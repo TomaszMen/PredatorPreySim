@@ -12,6 +12,7 @@
 
 class QPushButton;
 class QVBoxLayout;
+class Herd;
 
 class SimulationWidget : public QWidget
 {
@@ -27,11 +28,15 @@ public slots:
     void resetSimulation();
     void addPrey(int count = 1);
     void addPredator(int count = 1);
-    void addBush();  // DODANE
-    void addWater(); // DODANE
+    void addBush();
+    void addWater();
     void setSimulationParameters(float preyReproduction, float predatorReproduction,
                                  float foodRegeneration, float energyConsumption,
                                  float mutationRate, int initialPrey, int initialPredators);
+    void applyAndRestartSimulation(float foodRegenMult, int bushFoodLimit,
+                                   float predatorEnergyMult, float preyEnergyMult,
+                                   int initialPrey, int initialPredators,
+                                   float predatorVisionMult, float preyVisionMult);
 
 signals:
     void statisticsUpdated(int preyCount, int predatorCount, int generation,
@@ -39,6 +44,15 @@ signals:
                            float avgPreySize, float avgPredatorSize,
                            int births, int deaths);
     void historyUpdated(const QVector<int> &preyHistory, const QVector<int> &predatorHistory);
+
+    void evolutionDataUpdated(
+        const QVector<float> &preySpeedHistory,
+        const QVector<float> &predatorSpeedHistory,
+        const QVector<float> &preySizeHistory,
+        const QVector<float> &predatorSizeHistory,
+        const QVector<float> &preyVisionHistory,
+        const QVector<float> &predatorVisionHistory
+        );
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -93,6 +107,9 @@ private:
     float m_energyConsumptionRate;
     float m_mutationRate;
 
+    int m_initialPreyCount = 120;
+    int m_initialPredatorCount = 15;
+
     float m_globalPreyReproductionFactor;
     float m_globalPredatorReproductionFactor;
     float m_globalEnergyConsumptionFactor;
@@ -122,6 +139,13 @@ private:
     void addEnvironmentSafe(Environment* env);
     void removeEnvironmentSafe(Environment* env);
     QVector<Environment*> getEnvironmentCopy() const;
+
+    QVector<float> m_preySpeedHistory;
+    QVector<float> m_predatorSpeedHistory;
+    QVector<float> m_preySizeHistory;
+    QVector<float> m_predatorSizeHistory;
+    QVector<float> m_preyVisionHistory;
+    QVector<float> m_predatorVisionHistory;
 };
 
 #endif // SIMULATIONWIDGET_H

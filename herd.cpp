@@ -12,7 +12,7 @@ Herd::Herd(QObject *parent)
     , m_updateCounter(0)
     , m_targetPersistenceCounter(0)
     , m_targetPosition(-1, -1)
-    , m_idleTicks(0)  // DODANE: inicjalizacja licznika bezruchu
+    , m_idleTicks(0)
 {
 }
 
@@ -50,18 +50,15 @@ void Herd::removeMember(Prey* prey)
 
 void Herd::update()
 {
-    // Sprawdź czy stado nie jest w trakcie czyszczenia
     if (!m_alpha || m_alpha->energy() <= 0) {
         return;
     }
 
-    // Sprawdź czy alfa nadal żyje
     if (m_alpha->energy() <= 0) {
         selectNewAlpha();
         if (!m_alpha) return;
     }
 
-    // DODANE: śledzenie bezruchu alfy
     static QPointF lastAlphaPos = m_alpha->position();
     if ((lastAlphaPos - m_alpha->position()).manhattanLength() < 1.0f) {
         m_idleTicks++;
@@ -73,20 +70,19 @@ void Herd::update()
     m_updateCounter++;
     m_targetPersistenceCounter++;
 
-    // DODANE: wymuszona zmiana celu przy zbyt długim bezruchu
     if (m_idleTicks > IDLE_THRESHOLD && hasTarget()) {
-        chooseNewTarget(true); // wymuszona zmiana
+        chooseNewTarget(true);
         m_idleTicks = 0;
     }
 
     if (isTargetReached()) {
         emit targetReached();
         chooseNewTarget();
-        m_idleTicks = 0;  // DODANE: reset przy osiągnięciu celu
+        m_idleTicks = 0;
     }
     else if (m_targetPersistenceCounter >= TARGET_PERSISTENCE) {
         chooseNewTarget();
-        m_idleTicks = 0;  // DODANE: reset przy zmianie celu z powodu upływu czasu
+        m_idleTicks = 0;
     }
 
     if (hasTarget() && m_alpha && m_alpha->energy() > 0) {
@@ -98,21 +94,18 @@ void Herd::update()
     emit herdMoved(getCenter());
 }
 
-// ZMODYFIKOWANA: dodany parametr force
 void Herd::chooseNewTarget(bool force)
 {
     if (!m_alpha || m_alpha->energy() <= 0) {
         return;
     }
 
-    // DODANE: wymuszona zmiana celu - eksploracja nowego terenu
     if (force) {
         QRandomGenerator* rand = QRandomGenerator::global();
         float angle = rand->bounded(360) * M_PI / 180.0f;
-        float distance = 300 + rand->bounded(400); // 300-700 pikseli dalej
+        float distance = 300 + rand->bounded(400);
         m_targetPosition = m_alpha->position() + QPointF(cos(angle) * distance, sin(angle) * distance);
 
-        // Ogranicz do granic świata
         m_targetPosition.setX(qBound(0.0f, m_targetPosition.x(), 3000.0f));
         m_targetPosition.setY(qBound(0.0f, m_targetPosition.y(), 2000.0f));
 
@@ -121,10 +114,8 @@ void Herd::chooseNewTarget(bool force)
         return;
     }
 
-    // Istniejąca logika wyboru celu na podstawie potrzeb alfy
     QRandomGenerator* rand = QRandomGenerator::global();
 
-    // Hierarchia potrzeb alfy
     if (m_alpha->energy() < 80.0f) {
         Environment* bush = m_alpha->findNearestBush();
         if (bush) {
@@ -144,7 +135,6 @@ void Herd::chooseNewTarget(bool force)
         }
     }
 
-    // Losowa eksploracja
     m_targetPosition = QPointF(
         rand->bounded(500, 2500),
         rand->bounded(300, 1700)
@@ -174,7 +164,7 @@ void Herd::setTargetPosition(const QPointF& target)
     m_targetPosition = target;
     m_targetEnvironment = nullptr;
     m_targetPersistenceCounter = 0;
-    m_idleTicks = 0;  // DODANE: reset licznika przy ręcznym ustawieniu celu
+    m_idleTicks = 0;
 }
 
 void Herd::setTargetEnvironment(Environment* target)
@@ -184,7 +174,7 @@ void Herd::setTargetEnvironment(Environment* target)
         m_targetPosition = target->position();
     }
     m_targetPersistenceCounter = 0;
-    m_idleTicks = 0;  // DODANE: reset licznika przy ręcznym ustawieniu celu
+    m_idleTicks = 0;
 }
 
 void Herd::clearTarget()
@@ -214,7 +204,6 @@ void Herd::selectNewAlpha()
         return;
     }
 
-    // Usuń martwe ofiary z listy członków
     for (int i = m_members.size() - 1; i >= 0; --i) {
         if (!m_members[i] || m_members[i]->energy() <= 0) {
             m_members.removeAt(i);

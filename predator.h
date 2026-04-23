@@ -23,7 +23,6 @@ public:
 
     Environment* findNearestBush();
 
-    // Do zapamiętywania odwiedzonych krzaków
     struct VisitedBush {
         Environment* bush;
         int ticksSinceLastVisit;
@@ -34,7 +33,6 @@ public:
     int m_ticksAtCurrentBush;
     int m_ticksSinceLastKill;
 
-    // Metody pomocnicze
     void markBushAsVisited(Environment* bush);
     bool shouldAvoidBush(Environment* bush) const;
     void updateVisitedBushes();
@@ -48,13 +46,10 @@ private:
     int m_unsuccessfulHuntTicks;
     static const int EXPLORE_THRESHOLD = 500;
 
-    // Specyficzne dla Predator
     Organism* m_mateTarget;
 
-    // Umiejętności
     bool m_canSwim;
 
-    // Pomocnicze metody
     Organism* findNearestMate();
     Organism* findNearestPrey();
 };

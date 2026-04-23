@@ -11,12 +11,20 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QHeaderView>
+#include <QComboBox>
+#include <QFileDialog>
+#include <QFile>
+#include <QTextStream>
+#include <QStandardPaths>
+#include <QMessageBox>
+#include <QDir>*
+#include <QDateTime>
 
 SidePanel::SidePanel(QWidget *parent)
     : QWidget(parent)
     , m_currentGeneration(0)
 {
-    setFixedWidth(350);
+    setFixedWidth(400);
 
     m_tabWidget = new QTabWidget(this);
 
@@ -40,133 +48,143 @@ void SidePanel::setupParametersTab()
     m_parametersTab = new QWidget();
     QFormLayout *formLayout = new QFormLayout();
 
-    // Parametry reprodukcji
-    m_preyReproductionSpin = new QDoubleSpinBox();
-    m_preyReproductionSpin->setRange(0.1, 5.0);
-    m_preyReproductionSpin->setValue(1.0);
-    m_preyReproductionSpin->setSingleStep(0.1);
-    formLayout->addRow("Tempo reprodukcji ofiar:", m_preyReproductionSpin);
+    // Regeneracja jedzenia (mnożnik)
+    m_foodRegenerationCombo = new QComboBox();
+    m_foodRegenerationCombo->addItems({"0.5x", "0.75x", "1.0x", "1.5x", "2.0x", "5.0x"});
+    m_foodRegenerationCombo->setCurrentIndex(2); // 1.0x
+    m_foodRegenerationCombo->setToolTip("Mnożnik szybkości regeneracji jedzenia w krzakach");
+    formLayout->addRow("Regeneracja jedzenia:", m_foodRegenerationCombo);
 
-    m_predatorReproductionSpin = new QDoubleSpinBox();
-    m_predatorReproductionSpin->setRange(0.1, 5.0);
-    m_predatorReproductionSpin->setValue(1.0);
-    m_predatorReproductionSpin->setSingleStep(0.1);
-    formLayout->addRow("Tempo reprodukcji drapieżników:", m_predatorReproductionSpin);
+    // Limit jedzenia w krzakach
+    m_bushFoodLimitSpin = new QSpinBox();
+    m_bushFoodLimitSpin->setRange(50, 500);
+    m_bushFoodLimitSpin->setValue(140);
+    m_bushFoodLimitSpin->setSingleStep(10);
+    m_bushFoodLimitSpin->setSuffix(" jednostek");
+    m_bushFoodLimitSpin->setToolTip("Maksymalna ilość jedzenia w krzaku");
+    formLayout->addRow("Limit jedzenia w krzaku:", m_bushFoodLimitSpin);
 
-    // Środowisko
-    m_foodRegenerationSpin = new QDoubleSpinBox();
-    m_foodRegenerationSpin->setRange(0.0, 2.0);
-    m_foodRegenerationSpin->setValue(0.5);
-    m_foodRegenerationSpin->setSingleStep(0.1);
-    formLayout->addRow("Regeneracja jedzenia:", m_foodRegenerationSpin);
+    // Zużycie energii drapieżników
+    m_predatorEnergyCombo = new QComboBox();
+    m_predatorEnergyCombo->addItems({"0.5x", "0.75x", "1.0x", "1.5x", "2.0x"});
+    m_predatorEnergyCombo->setCurrentIndex(2); // 1.0x
+    m_predatorEnergyCombo->setToolTip("Mnożnik zużycia energii przez drapieżniki");
+    formLayout->addRow("Zużycie energii drapieżników:", m_predatorEnergyCombo);
 
-    m_waterCoverageSpin = new QDoubleSpinBox();
-    m_waterCoverageSpin->setRange(0.0, 50.0);
-    m_waterCoverageSpin->setValue(15.0);
-    m_waterCoverageSpin->setSingleStep(1.0);
-    formLayout->addRow("Pokrycie wodą (%):", m_waterCoverageSpin);
+    // Zużycie energii ofiar
+    m_preyEnergyCombo = new QComboBox();
+    m_preyEnergyCombo->addItems({"0.5x", "0.75x", "1.0x", "1.5x", "2.0x"});
+    m_preyEnergyCombo->setCurrentIndex(2); // 1.0x
+    m_preyEnergyCombo->setToolTip("Mnożnik zużycia energii przez ofiary");
+    formLayout->addRow("Zużycie energii ofiar:", m_preyEnergyCombo);
 
-    m_bushDensitySpin = new QDoubleSpinBox();
-    m_bushDensitySpin->setRange(0.1, 10.0);
-    m_bushDensitySpin->setValue(2.0);
-    m_bushDensitySpin->setSingleStep(0.5);
-    formLayout->addRow("Gęstość krzaków:", m_bushDensitySpin);
-
-    // Organizmy
-    m_energyConsumptionSpin = new QDoubleSpinBox();
-    m_energyConsumptionSpin->setRange(0.1, 3.0);
-    m_energyConsumptionSpin->setValue(1.0);
-    m_energyConsumptionSpin->setSingleStep(0.1);
-    formLayout->addRow("Zużycie energii:", m_energyConsumptionSpin);
-
-    m_mutationRateSpin = new QDoubleSpinBox();
-    m_mutationRateSpin->setRange(0.0, 20.0);
-    m_mutationRateSpin->setValue(5.0);
-    m_mutationRateSpin->setSingleStep(0.5);
-    formLayout->addRow("Stopień mutacji (%):", m_mutationRateSpin);
-
-    // Początkowe populacje
+    // Początkowa liczba ofiar
     m_initialPreySpin = new QSpinBox();
-    m_initialPreySpin->setRange(1, 200);
-    m_initialPreySpin->setValue(20);
+    m_initialPreySpin->setRange(1, 500);
+    m_initialPreySpin->setValue(120);
+    m_initialPreySpin->setToolTip("Początkowa liczba ofiar przy restarcie symulacji");
     formLayout->addRow("Początkowa liczba ofiar:", m_initialPreySpin);
 
+    // Początkowa liczba drapieżników
     m_initialPredatorsSpin = new QSpinBox();
-    m_initialPredatorsSpin->setRange(1, 50);
-    m_initialPredatorsSpin->setValue(5);
+    m_initialPredatorsSpin->setRange(1, 100);
+    m_initialPredatorsSpin->setValue(15);
+    m_initialPredatorsSpin->setToolTip("Początkowa liczba drapieżników przy restarcie symulacji");
     formLayout->addRow("Początkowa liczba drapieżników:", m_initialPredatorsSpin);
 
-    m_preyReproductionSpin->setToolTip(
-        "Współczynnik tempa reprodukcji ofiar.\n"
-        "Wartość 1.0 = normalne tempo.\n"
-        "Wartość > 1.0 zwiększa szansę rozmnażania (liniowo).\n"
-        "Wpływa na stabilność populacji – zbyt wysokie może prowadzić do przeludnienia,\n"
-        "zbyt niskie do wymarcia."
-        );
+    // Zasięg wzroku drapieżników
+    m_predatorVisionCombo = new QComboBox();
+    m_predatorVisionCombo->addItems({"0.75x", "1.0x", "1.5x", "2.0x", "3.0x", "5.0x"});
+    m_predatorVisionCombo->setCurrentIndex(1); // 1.0x
+    m_predatorVisionCombo->setToolTip("Mnożnik zasięgu wzroku drapieżników");
+    formLayout->addRow("Zasięg wzroku drapieżników:", m_predatorVisionCombo);
 
-    m_predatorReproductionSpin->setToolTip(
-        "Współczynnik tempa reprodukcji drapieżników.\n"
-        "Analogicznie jak u ofiar – im wyższy, tym częściej się rozmnażają.\n"
-        "Wpływa na presję drapieżnictwa."
-        );
-
-    m_foodRegenerationSpin->setToolTip(
-        "Szybkość odnawiania się jedzenia w krzakach.\n"
-        "Wartość 0.5 oznacza, że każdej rundy krzak odzyskuje 0.5 punktu jedzenia\n"
-        "(maksymalnie do 100). Większa wartość przyspiesza regenerację roślinności,\n"
-        "co wspiera populację roślinożerców."
-        );
-
-    m_waterCoverageSpin->setToolTip(
-        "Pokrycie mapy wodą (w procentach powierzchni).\n"
-        "Wpływa na liczbę i rozmiar zbiorników wodnych.\n"
-        "Więcej wody ułatwia nawadnianie, ale może utrudniać poruszanie się\n"
-        "zwierzętom nieumiejącym pływać."
-        );
-
-    m_bushDensitySpin->setToolTip(
-        "Gęstość krzaków (liczba krzaków na jednostkę powierzchni).\n"
-        "Więcej krzaków = więcej jedzenia dla roślinożerców."
-        );
-
-    m_energyConsumptionSpin->setToolTip(
-        "Współczynnik zużycia energii.\n"
-        "Wartość 1.0 = normalne tempo spadku energii.\n"
-        "Większa wartość powoduje szybsze głodzenie się zwierząt,\n"
-        "co zwiększa presję na poszukiwanie pożywienia i może skrócić czas życia."
-        );
-
-    m_mutationRateSpin->setToolTip(
-        "Stopień mutacji (w procentach).\n"
-        "Określa, jak często geny ulegają zmianie przy reprodukcji.\n"
-        "Wyższe wartości zwiększają różnorodność genetyczną, ale mogą też\n"
-        "prowadzić do niekorzystnych cech. Niskie wartości spowalniają ewolucję."
-        );
-
-    m_initialPreySpin->setToolTip(
-        "Początkowa liczba ofiar przy starcie nowej symulacji.\n"
-        "Wpływa na początkową dynamikę ekosystemu."
-        );
-
-    m_initialPredatorsSpin->setToolTip(
-        "Początkowa liczba drapieżników przy starcie nowej symulacji."
-        );
+    // Zasięg wzroku ofiar
+    m_preyVisionCombo = new QComboBox();
+    m_preyVisionCombo->addItems({"0.75x", "1.0x", "1.5x", "2.0x", "3.0x", "5.0x"});
+    m_preyVisionCombo->setCurrentIndex(1); // 1.0x
+    m_preyVisionCombo->setToolTip("Mnożnik zasięgu wzroku ofiar");
+    formLayout->addRow("Zasięg wzroku ofiar:", m_preyVisionCombo);
 
     // Przyciski
-    QPushButton *applyButton = new QPushButton("Zastosuj");
+    QPushButton *applyButton = new QPushButton("Restart symulacji z powyższymi parametrami");
     QPushButton *resetButton = new QPushButton("Przywróć domyślne");
 
     connect(applyButton, &QPushButton::clicked, this, &SidePanel::applyParameters);
     connect(resetButton, &QPushButton::clicked, this, &SidePanel::resetToDefaults);
 
-    QHBoxLayout *buttonLayout = new QHBoxLayout();
-    buttonLayout->addWidget(applyButton);
-    buttonLayout->addWidget(resetButton);
-
     QVBoxLayout *mainLayout = new QVBoxLayout(m_parametersTab);
     mainLayout->addLayout(formLayout);
-    mainLayout->addLayout(buttonLayout);
+    mainLayout->addWidget(applyButton);
+    mainLayout->addWidget(resetButton);
     mainLayout->addStretch();
+}
+
+void SidePanel::resetCharts()
+{
+    // Wyczyść wykres populacji
+    m_preySeries->clear();
+    m_predatorSeries->clear();
+
+    // Wyczyść wykresy ewolucyjne ofiar
+    m_preySpeedSeries->clear();
+    m_preySizeSeries->clear();
+    m_preyVisionSeries->clear();
+
+    // Wyczyść wykresy ewolucyjne drapieżników
+    m_predatorSpeedSeries->clear();
+    m_predatorSizeSeries->clear();
+    m_predatorVisionSeries->clear();
+
+    // Zresetuj osie Y do domyślnych zakresów
+    auto preyAxesY = m_preyEvolutionChart->axes(Qt::Vertical);
+    if (!preyAxesY.isEmpty()) {
+        auto axisY = qobject_cast<QValueAxis*>(preyAxesY.first());
+        if (axisY) {
+            axisY->setRange(0, 10);  // Domyślny zakres
+        }
+    }
+
+    auto predAxesY = m_predatorEvolutionChart->axes(Qt::Vertical);
+    if (!predAxesY.isEmpty()) {
+        auto axisY = qobject_cast<QValueAxis*>(predAxesY.first());
+        if (axisY) {
+            axisY->setRange(0, 10);  // Domyślny zakres
+        }
+    }
+
+    // Zresetuj osie X
+    auto preyAxesX = m_preyEvolutionChart->axes(Qt::Horizontal);
+    if (!preyAxesX.isEmpty()) {
+        auto axisX = qobject_cast<QValueAxis*>(preyAxesX.first());
+        if (axisX) {
+            axisX->setRange(0, 1);
+        }
+    }
+
+    auto predAxesX = m_predatorEvolutionChart->axes(Qt::Horizontal);
+    if (!predAxesX.isEmpty()) {
+        auto axisX = qobject_cast<QValueAxis*>(predAxesX.first());
+        if (axisX) {
+            axisX->setRange(0, 1);
+        }
+    }
+
+    auto popAxesY = m_chart->axes(Qt::Vertical);
+    if (!popAxesY.isEmpty()) {
+        auto axisY = qobject_cast<QValueAxis*>(popAxesY.first());
+        if (axisY) {
+            axisY->setRange(0, 10);
+        }
+    }
+
+    auto popAxesX = m_chart->axes(Qt::Horizontal);
+    if (!popAxesX.isEmpty()) {
+        auto axisX = qobject_cast<QValueAxis*>(popAxesX.first());
+        if (axisX) {
+            axisX->setRange(0, 1);
+        }
+    }
 }
 
 void SidePanel::setupChartsTab()
@@ -174,7 +192,6 @@ void SidePanel::setupChartsTab()
     m_chartsTab = new QWidget();
     QVBoxLayout *layout = new QVBoxLayout();
 
-    // Wykres populacji
     QGroupBox *populationGroup = new QGroupBox("Dynamika populacji");
     QVBoxLayout *populationLayout = new QVBoxLayout();
 
@@ -215,62 +232,378 @@ void SidePanel::setupChartsTab()
     m_chartView->setMinimumHeight(200);
 
     populationLayout->addWidget(m_chartView);
-    populationGroup->setLayout(populationLayout);
 
+    // Przycisk eksportu dla wykresu populacji
+    m_exportPopulationButton = new QPushButton(" Eksportuj dane populacji");
+    m_exportPopulationButton->setIcon(QIcon::fromTheme("document-save"));
+    connect(m_exportPopulationButton, &QPushButton::clicked, this, &SidePanel::exportPopulationChart);
+    populationLayout->addWidget(m_exportPopulationButton);
+
+    populationGroup->setLayout(populationLayout);
     layout->addWidget(populationGroup);
 
-    // Wykres ewolucji
-    QGroupBox *evolutionGroup = new QGroupBox("Ewolucja cech");
-    QVBoxLayout *evolutionLayout = new QVBoxLayout();
+    QGroupBox *preyEvolutionGroup = new QGroupBox("Ewolucja cech ofiar");
+    QVBoxLayout *preyEvolutionLayout = new QVBoxLayout();
 
-    m_evolutionChart = new QChart();
-    m_evolutionChart->setTitle("Średnie cechy populacji");
+    m_preyEvolutionChart = new QChart();
+    m_preyEvolutionChart->setTitle("Ewolucja cech ofiar w czasie");
+    m_preyEvolutionChart->setAnimationOptions(QChart::SeriesAnimations);
 
-    m_speedSeries = new QLineSeries();
-    m_speedSeries->setName("Szybkość");
-    m_speedSeries->setColor(QColor(255, 165, 0));
+    m_preySpeedSeries = new QLineSeries();
+    m_preySpeedSeries->setName("Szybkość");
+    m_preySpeedSeries->setColor(QColor(0, 100, 255));
+    m_preySpeedSeries->setPen(QPen(QColor(0, 100, 255), 2));
 
-    m_sizeSeries = new QLineSeries();
-    m_sizeSeries->setName("Rozmiar");
-    m_sizeSeries->setColor(QColor(138, 43, 226));
+    m_preySizeSeries = new QLineSeries();
+    m_preySizeSeries->setName("Rozmiar");
+    m_preySizeSeries->setColor(QColor(255, 140, 0));
+    m_preySizeSeries->setPen(QPen(QColor(255, 140, 0), 2));
 
-    m_visionSeries = new QLineSeries();
-    m_visionSeries->setName("Wzrok");
-    m_visionSeries->setColor(QColor(0, 191, 255));
+    m_preyVisionSeries = new QLineSeries();
+    m_preyVisionSeries->setName("Zasięg wzroku");
+    m_preyVisionSeries->setColor(QColor(128, 0, 128));
+    m_preyVisionSeries->setPen(QPen(QColor(128, 0, 128), 2));
 
-    m_evolutionChart->addSeries(m_speedSeries);
-    m_evolutionChart->addSeries(m_sizeSeries);
-    m_evolutionChart->addSeries(m_visionSeries);
+    m_preyEvolutionChart->addSeries(m_preySpeedSeries);
+    m_preyEvolutionChart->addSeries(m_preySizeSeries);
+    m_preyEvolutionChart->addSeries(m_preyVisionSeries);
 
-    QValueAxis *evoAxisX = new QValueAxis();
-    evoAxisX->setTitleText("Pokolenie");
-    evoAxisX->setLabelFormat("%d");
+    QValueAxis *preyAxisX = new QValueAxis();
+    preyAxisX->setTitleText("Czas (kroki)");
+    preyAxisX->setLabelFormat("%d");
+    preyAxisX->setTickCount(10);
 
-    QValueAxis *evoAxisY = new QValueAxis();
-    evoAxisY->setTitleText("Wartość cechy");
-    evoAxisY->setLabelFormat("%.2f");
+    QValueAxis *preyAxisY = new QValueAxis();
+    preyAxisY->setTitleText("Wartość cechy");
+    preyAxisY->setLabelFormat("%.2f");
 
-    m_evolutionChart->addAxis(evoAxisX, Qt::AlignBottom);
-    m_evolutionChart->addAxis(evoAxisY, Qt::AlignLeft);
+    m_preyEvolutionChart->addAxis(preyAxisX, Qt::AlignBottom);
+    m_preyEvolutionChart->addAxis(preyAxisY, Qt::AlignLeft);
 
-    m_speedSeries->attachAxis(evoAxisX);
-    m_speedSeries->attachAxis(evoAxisY);
-    m_sizeSeries->attachAxis(evoAxisX);
-    m_sizeSeries->attachAxis(evoAxisY);
-    m_visionSeries->attachAxis(evoAxisX);
-    m_visionSeries->attachAxis(evoAxisY);
+    m_preySpeedSeries->attachAxis(preyAxisX);
+    m_preySpeedSeries->attachAxis(preyAxisY);
+    m_preySizeSeries->attachAxis(preyAxisX);
+    m_preySizeSeries->attachAxis(preyAxisY);
+    m_preyVisionSeries->attachAxis(preyAxisX);
+    m_preyVisionSeries->attachAxis(preyAxisY);
 
-    m_evolutionChartView = new QChartView(m_evolutionChart);
-    m_evolutionChartView->setRenderHint(QPainter::Antialiasing);
-    m_evolutionChartView->setMinimumHeight(200);
+    m_preyEvolutionChartView = new QChartView(m_preyEvolutionChart);
+    m_preyEvolutionChartView->setRenderHint(QPainter::Antialiasing);
+    m_preyEvolutionChartView->setMinimumHeight(200);
 
-    evolutionLayout->addWidget(m_evolutionChartView);
-    evolutionGroup->setLayout(evolutionLayout);
+    preyEvolutionLayout->addWidget(m_preyEvolutionChartView);
 
-    layout->addWidget(evolutionGroup);
+    // Przycisk eksportu dla wykresu ewolucji ofiar
+    m_exportPreyEvolutionButton = new QPushButton(" Eksportuj dane ewolucji ofiar");
+    m_exportPreyEvolutionButton->setIcon(QIcon::fromTheme("document-save"));
+    connect(m_exportPreyEvolutionButton, &QPushButton::clicked, this, &SidePanel::exportPreyEvolutionChart);
+    preyEvolutionLayout->addWidget(m_exportPreyEvolutionButton);
+
+    preyEvolutionGroup->setLayout(preyEvolutionLayout);
+    layout->addWidget(preyEvolutionGroup);
+
+    QGroupBox *predatorEvolutionGroup = new QGroupBox("Ewolucja cech drapieżników");
+    QVBoxLayout *predatorEvolutionLayout = new QVBoxLayout();
+
+    m_predatorEvolutionChart = new QChart();
+    m_predatorEvolutionChart->setTitle("Ewolucja cech drapieżników w czasie");
+    m_predatorEvolutionChart->setAnimationOptions(QChart::SeriesAnimations);
+
+    m_predatorSpeedSeries = new QLineSeries();
+    m_predatorSpeedSeries->setName("Szybkość");
+    m_predatorSpeedSeries->setColor(QColor(200, 0, 0));
+    m_predatorSpeedSeries->setPen(QPen(QColor(200, 0, 0), 2));
+
+    m_predatorSizeSeries = new QLineSeries();
+    m_predatorSizeSeries->setName("Rozmiar");
+    m_predatorSizeSeries->setColor(QColor(255, 165, 0));
+    m_predatorSizeSeries->setPen(QPen(QColor(255, 165, 0), 2));
+
+    m_predatorVisionSeries = new QLineSeries();
+    m_predatorVisionSeries->setName("Zasięg wzroku");
+    m_predatorVisionSeries->setColor(QColor(75, 0, 130));
+    m_predatorVisionSeries->setPen(QPen(QColor(75, 0, 130), 2));
+
+    m_predatorEvolutionChart->addSeries(m_predatorSpeedSeries);
+    m_predatorEvolutionChart->addSeries(m_predatorSizeSeries);
+    m_predatorEvolutionChart->addSeries(m_predatorVisionSeries);
+
+    QValueAxis *predatorAxisX = new QValueAxis();
+    predatorAxisX->setTitleText("Czas (kroki)");
+    predatorAxisX->setLabelFormat("%d");
+    predatorAxisX->setTickCount(10);
+
+    QValueAxis *predatorAxisY = new QValueAxis();
+    predatorAxisY->setTitleText("Wartość cechy");
+    predatorAxisY->setLabelFormat("%.2f");
+
+    m_predatorEvolutionChart->addAxis(predatorAxisX, Qt::AlignBottom);
+    m_predatorEvolutionChart->addAxis(predatorAxisY, Qt::AlignLeft);
+
+    m_predatorSpeedSeries->attachAxis(predatorAxisX);
+    m_predatorSpeedSeries->attachAxis(predatorAxisY);
+    m_predatorSizeSeries->attachAxis(predatorAxisX);
+    m_predatorSizeSeries->attachAxis(predatorAxisY);
+    m_predatorVisionSeries->attachAxis(predatorAxisX);
+    m_predatorVisionSeries->attachAxis(predatorAxisY);
+
+    m_predatorEvolutionChartView = new QChartView(m_predatorEvolutionChart);
+    m_predatorEvolutionChartView->setRenderHint(QPainter::Antialiasing);
+    m_predatorEvolutionChartView->setMinimumHeight(200);
+
+    predatorEvolutionLayout->addWidget(m_predatorEvolutionChartView);
+
+    // Przycisk eksportu dla wykresu ewolucji drapieżników
+    m_exportPredatorEvolutionButton = new QPushButton(" Eksportuj dane ewolucji drapieżników");
+    m_exportPredatorEvolutionButton->setIcon(QIcon::fromTheme("document-save"));
+    connect(m_exportPredatorEvolutionButton, &QPushButton::clicked, this, &SidePanel::exportPredatorEvolutionChart);
+    predatorEvolutionLayout->addWidget(m_exportPredatorEvolutionButton);
+
+    predatorEvolutionGroup->setLayout(predatorEvolutionLayout);
+    layout->addWidget(predatorEvolutionGroup);
+
     layout->addStretch();
-
     m_chartsTab->setLayout(layout);
+}
+
+void SidePanel::updateEvolutionCharts(
+    const QVector<float> &preySpeedHistory,
+    const QVector<float> &predatorSpeedHistory,
+    const QVector<float> &preySizeHistory,
+    const QVector<float> &predatorSizeHistory,
+    const QVector<float> &preyVisionHistory,
+    const QVector<float> &predatorVisionHistory)
+{
+    // Aktualizuj wykres ofiar
+    m_preySpeedSeries->clear();
+    m_preySizeSeries->clear();
+    m_preyVisionSeries->clear();
+
+    // Znajdź maksymalne wartości dla skalowania osi Y ofiar
+    float maxPreySpeed = 0.1f;
+    float maxPreySize = 0.1f;
+    float maxPreyVision = 0.1f;
+
+    for (int i = 0; i < preySpeedHistory.size(); ++i) {
+        m_preySpeedSeries->append(i, preySpeedHistory[i]);
+        m_preySizeSeries->append(i, preySizeHistory[i]);
+        m_preyVisionSeries->append(i, preyVisionHistory[i]);
+
+        maxPreySpeed = qMax(maxPreySpeed, preySpeedHistory[i]);
+        maxPreySize = qMax(maxPreySize, preySizeHistory[i]);
+        maxPreyVision = qMax(maxPreyVision, preyVisionHistory[i]);
+    }
+
+    // Aktualizuj wykres drapieżników
+    m_predatorSpeedSeries->clear();
+    m_predatorSizeSeries->clear();
+    m_predatorVisionSeries->clear();
+
+    // Znajdź maksymalne wartości dla skalowania osi Y drapieżników
+    float maxPredatorSpeed = 0.1f;
+    float maxPredatorSize = 0.1f;
+    float maxPredatorVision = 0.1f;
+
+    for (int i = 0; i < predatorSpeedHistory.size(); ++i) {
+        m_predatorSpeedSeries->append(i, predatorSpeedHistory[i]);
+        m_predatorSizeSeries->append(i, predatorSizeHistory[i]);
+        m_predatorVisionSeries->append(i, predatorVisionHistory[i]);
+
+        maxPredatorSpeed = qMax(maxPredatorSpeed, predatorSpeedHistory[i]);
+        maxPredatorSize = qMax(maxPredatorSize, predatorSizeHistory[i]);
+        maxPredatorVision = qMax(maxPredatorVision, predatorVisionHistory[i]);
+    }
+
+    // Dostosuj osie X i Y dla wykresu ofiar
+    int maxPreyDataSize = qMax(preySpeedHistory.size(),
+                               qMax(preySizeHistory.size(), preyVisionHistory.size()));
+
+    // Oś X dla ofiar
+    auto preyAxesX = m_preyEvolutionChart->axes(Qt::Horizontal);
+    if (!preyAxesX.isEmpty()) {
+        auto axisX = qobject_cast<QValueAxis*>(preyAxesX.first());
+        if (axisX) {
+            axisX->setRange(0, qMax(1, maxPreyDataSize));
+        }
+    }
+
+    // Oś Y dla ofiar - dynamiczne skalowanie
+    auto preyAxesY = m_preyEvolutionChart->axes(Qt::Vertical);
+    if (!preyAxesY.isEmpty()) {
+        auto axisY = qobject_cast<QValueAxis*>(preyAxesY.first());
+        if (axisY) {
+            float maxPreyValue = qMax(maxPreySpeed, qMax(maxPreySize, maxPreyVision));
+            // Dodaj 10% marginesu na górze
+            axisY->setRange(0, maxPreyValue * 1.1f);
+        }
+    }
+
+    // Dostosuj osie X i Y dla wykresu drapieżników
+    int maxPredatorDataSize = qMax(predatorSpeedHistory.size(),
+                                   qMax(predatorSizeHistory.size(), predatorVisionHistory.size()));
+
+    // Oś X dla drapieżników
+    auto predAxesX = m_predatorEvolutionChart->axes(Qt::Horizontal);
+    if (!predAxesX.isEmpty()) {
+        auto axisX = qobject_cast<QValueAxis*>(predAxesX.first());
+        if (axisX) {
+            axisX->setRange(0, qMax(1, maxPredatorDataSize));
+        }
+    }
+
+    // Oś Y dla drapieżników - dynamiczne skalowanie
+    auto predAxesY = m_predatorEvolutionChart->axes(Qt::Vertical);
+    if (!predAxesY.isEmpty()) {
+        auto axisY = qobject_cast<QValueAxis*>(predAxesY.first());
+        if (axisY) {
+            float maxPredatorValue = qMax(maxPredatorSpeed,
+                                          qMax(maxPredatorSize, maxPredatorVision));
+            // Dodaj 10% marginesu na górze
+            axisY->setRange(0, maxPredatorValue * 1.1f);
+        }
+    }
+}
+
+void SidePanel::exportPopulationChart()
+{
+    QVector<QPointF> preyData, predatorData;
+
+    for (int i = 0; i < m_preySeries->count(); ++i) {
+        preyData.append(m_preySeries->at(i));
+    }
+
+    for (int i = 0; i < m_predatorSeries->count(); ++i) {
+        predatorData.append(m_predatorSeries->at(i));
+    }
+
+    exportChartData("populacja", preyData, "Ofiary", predatorData, "Drapiezniki");
+}
+
+void SidePanel::exportPreyEvolutionChart()
+{
+    QVector<QPointF> speedData, sizeData, visionData;
+
+    for (int i = 0; i < m_preySpeedSeries->count(); ++i) {
+        speedData.append(m_preySpeedSeries->at(i));
+        sizeData.append(m_preySizeSeries->at(i));
+        visionData.append(m_preyVisionSeries->at(i));
+    }
+
+    // Eksportuj do osobnego pliku z wieloma kolumnami
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    QString fileName = QString("ewolucja_ofiar_%1.csv").arg(timestamp);
+    QString downloadsPath = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    QString filePath = QDir(downloadsPath).filePath(fileName);
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "Błąd", "Nie można zapisać pliku:\n" + filePath);
+        return;
+    }
+
+    QTextStream out(&file);
+    out.setEncoding(QStringConverter::Utf8);
+
+    // Nagłówek
+    out << "Czas;Szybkosc_ofiar;Rozmiar_ofiar;Zasieg_wzroku_ofiar\n";
+
+    // Dane
+    int maxSize = qMax(speedData.size(), qMax(sizeData.size(), visionData.size()));
+    for (int i = 0; i < maxSize; ++i) {
+        out << i << ";";
+        out << (i < speedData.size() ? QString::number(speedData[i].y(), 'f', 3) : "") << ";";
+        out << (i < sizeData.size() ? QString::number(sizeData[i].y(), 'f', 3) : "") << ";";
+        out << (i < visionData.size() ? QString::number(visionData[i].y(), 'f', 3) : "") << "\n";
+    }
+
+    file.close();
+
+    QMessageBox::information(this, "Eksport zakończony",
+                             QString("Dane zostały zapisane w pliku:\n%1").arg(filePath));
+}
+
+void SidePanel::exportPredatorEvolutionChart()
+{
+    QVector<QPointF> speedData, sizeData, visionData;
+
+    for (int i = 0; i < m_predatorSpeedSeries->count(); ++i) {
+        speedData.append(m_predatorSpeedSeries->at(i));
+        sizeData.append(m_predatorSizeSeries->at(i));
+        visionData.append(m_predatorVisionSeries->at(i));
+    }
+
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    QString fileName = QString("ewolucja_drapieznikow_%1.csv").arg(timestamp);
+    QString downloadsPath = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    QString filePath = QDir(downloadsPath).filePath(fileName);
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "Błąd", "Nie można zapisać pliku:\n" + filePath);
+        return;
+    }
+
+    QTextStream out(&file);
+    out.setEncoding(QStringConverter::Utf8);
+
+    out << "Czas;Szybkosc_drapieznikow;Rozmiar_drapieznikow;Zasieg_wzroku_drapieznikow\n";
+
+    int maxSize = qMax(speedData.size(), qMax(sizeData.size(), visionData.size()));
+    for (int i = 0; i < maxSize; ++i) {
+        out << i << ";";
+        out << (i < speedData.size() ? QString::number(speedData[i].y(), 'f', 3) : "") << ";";
+        out << (i < sizeData.size() ? QString::number(sizeData[i].y(), 'f', 3) : "") << ";";
+        out << (i < visionData.size() ? QString::number(visionData[i].y(), 'f', 3) : "") << "\n";
+    }
+
+    file.close();
+
+    QMessageBox::information(this, "Eksport zakończony",
+                             QString("Dane zostały zapisane w pliku:\n%1").arg(filePath));
+}
+
+void SidePanel::exportChartData(const QString &chartName,
+                                const QVector<QPointF> &series1Data,
+                                const QString &series1Name,
+                                const QVector<QPointF> &series2Data,
+                                const QString &series2Name)
+{
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    QString fileName = QString("%1_%2.csv").arg(chartName).arg(timestamp);
+    QString downloadsPath = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    QString filePath = QDir(downloadsPath).filePath(fileName);
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "Błąd", "Nie można zapisać pliku:\n" + filePath);
+        return;
+    }
+
+    QTextStream out(&file);
+    out.setEncoding(QStringConverter::Utf8);
+
+    // Nagłówek
+    out << "Czas;" << series1Name;
+    if (!series2Data.isEmpty()) {
+        out << ";" << series2Name;
+    }
+    out << "\n";
+
+    // Dane
+    int maxSize = qMax(series1Data.size(), series2Data.size());
+    for (int i = 0; i < maxSize; ++i) {
+        out << i << ";";
+        out << (i < series1Data.size() ? QString::number(series1Data[i].y(), 'f', 2) : "") << ";";
+        if (!series2Data.isEmpty()) {
+            out << (i < series2Data.size() ? QString::number(series2Data[i].y(), 'f', 2) : "");
+        }
+        out << "\n";
+    }
+
+    file.close();
+
+    QMessageBox::information(this, "Eksport zakończony",
+                             QString("Dane zostały zapisane w pliku:\n%1").arg(filePath));
 }
 
 void SidePanel::setupStatisticsTab()
@@ -306,22 +639,6 @@ void SidePanel::setupStatisticsTab()
 
     currentStatsGroup->setLayout(currentStatsLayout);
     layout->addWidget(currentStatsGroup);
-
-    // Tabela historii ewolucji
-    QGroupBox *evolutionTableGroup = new QGroupBox("Historia ewolucji");
-    QVBoxLayout *tableLayout = new QVBoxLayout();
-
-    m_evolutionTable = new QTableWidget();
-    m_evolutionTable->setColumnCount(4);
-    m_evolutionTable->setHorizontalHeaderLabels(QStringList() << "Pokolenie" << "Szybkość" << "Rozmiar" << "Wzrok");
-    m_evolutionTable->horizontalHeader()->setStretchLastSection(true);
-    m_evolutionTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_evolutionTable->setMaximumHeight(150);
-
-    tableLayout->addWidget(m_evolutionTable);
-    evolutionTableGroup->setLayout(tableLayout);
-    layout->addWidget(evolutionTableGroup);
-
     layout->addStretch();
 
     m_statisticsTab->setLayout(layout);
@@ -338,9 +655,8 @@ void SidePanel::setupControlTab()
     QPushButton *addWaterButton = new QPushButton("Dodaj wodę");
     QPushButton *clearAllButton = new QPushButton("Wyczyść wszystko");
 
-    // Dodaj tooltipy dla wyjaśnienia
-    addBushButton->setToolTip("Dodaje nowy krzak w losowym miejscu na mapie.\nKrzaki są źródłem pożywienia dla roślinożerców.");
-    addWaterButton->setToolTip("Dodaje nowy zbiornik wodny w losowym miejscu.\nZwierzęta muszą pić wodę, aby przetrwać.\nNiektóre zwierzęta mogą pływać, inne toną.");
+    addBushButton->setToolTip("Dodaje nowy krzak w losowym miejscu na mapie.");
+    addWaterButton->setToolTip("Dodaje nowy zbiornik wodny w losowym miejscu.");
 
     connect(addPreyButton, &QPushButton::clicked, [this]() {
         emit addPreyRequested(10);
@@ -350,15 +666,8 @@ void SidePanel::setupControlTab()
         emit addPredatorRequested(3);
     });
 
-    connect(addBushButton, &QPushButton::clicked, [this]() {
-        // Emituj sygnał do dodania krzaka
-        // (musisz dodać odpowiedni sygnał w sidepanel.h i połączyć go w mainwindow.cpp)
-    });
-
-    connect(addWaterButton, &QPushButton::clicked, [this]() {
-        // Emituj sygnał do dodania wody
-    });
-
+    connect(addBushButton, &QPushButton::clicked, this, &SidePanel::addBushRequested);
+    connect(addWaterButton, &QPushButton::clicked, this, &SidePanel::addWaterRequested);
     connect(clearAllButton, &QPushButton::clicked, this, &SidePanel::clearAllRequested);
 
     layout->addWidget(addPreyButton);
@@ -366,16 +675,6 @@ void SidePanel::setupControlTab()
     layout->addWidget(addBushButton);
     layout->addWidget(addWaterButton);
     layout->addWidget(clearAllButton);
-
-    // Dodaj wyjaśnienie
-    QLabel *infoLabel = new QLabel("Przyciski do manipulacji środowiskiem:");
-    infoLabel->setWordWrap(true);
-    QLabel *bushInfo = new QLabel("• Krzak: źródło pożywienia dla roślinożerców");
-    QLabel *waterInfo = new QLabel("• Woda: konieczna do picia, niektóre zwierzęta toną");
-
-    layout->addWidget(infoLabel);
-    layout->addWidget(bushInfo);
-    layout->addWidget(waterInfo);
     layout->addStretch();
 
     m_controlTab->setLayout(layout);
@@ -383,28 +682,44 @@ void SidePanel::setupControlTab()
 
 void SidePanel::applyParameters()
 {
+    auto parseMultiplier = [](const QString& text) -> float {
+        QString temp = text;
+        return temp.remove("x").toFloat();
+    };
+
+    float foodRegenMult = parseMultiplier(m_foodRegenerationCombo->currentText());
+    int bushFoodLimit = m_bushFoodLimitSpin->value();
+    float predatorEnergyMult = parseMultiplier(m_predatorEnergyCombo->currentText());
+    float preyEnergyMult = parseMultiplier(m_preyEnergyCombo->currentText());
+    int initialPrey = m_initialPreySpin->value();
+    int initialPredators = m_initialPredatorsSpin->value();
+    float predatorVisionMult = parseMultiplier(m_predatorVisionCombo->currentText());
+    float preyVisionMult = parseMultiplier(m_preyVisionCombo->currentText());
+
     emit simulationParametersChanged(
-        m_preyReproductionSpin->value(),
-        m_predatorReproductionSpin->value(),
-        m_foodRegenerationSpin->value(),
-        m_energyConsumptionSpin->value(),
-        m_mutationRateSpin->value(),
-        m_initialPreySpin->value(),
-        m_initialPredatorsSpin->value()
+        foodRegenMult,
+        bushFoodLimit,
+        predatorEnergyMult,
+        preyEnergyMult,
+        initialPrey,
+        initialPredators,
+        predatorVisionMult,
+        preyVisionMult
         );
+
+    emit restartSimulationRequested();
 }
 
 void SidePanel::resetToDefaults()
 {
-    m_preyReproductionSpin->setValue(1.0);
-    m_predatorReproductionSpin->setValue(1.0);
-    m_foodRegenerationSpin->setValue(0.5);
-    m_energyConsumptionSpin->setValue(1.0);
-    m_mutationRateSpin->setValue(5.0);
-    m_initialPreySpin->setValue(20);
-    m_initialPredatorsSpin->setValue(5);
-    m_waterCoverageSpin->setValue(15.0);
-    m_bushDensitySpin->setValue(2.0);
+    m_foodRegenerationCombo->setCurrentIndex(2); // 1.0x
+    m_bushFoodLimitSpin->setValue(140);
+    m_predatorEnergyCombo->setCurrentIndex(2); // 1.0x
+    m_preyEnergyCombo->setCurrentIndex(2); // 1.0x
+    m_initialPreySpin->setValue(120);
+    m_initialPredatorsSpin->setValue(15);
+    m_predatorVisionCombo->setCurrentIndex(1); // 1.0x
+    m_preyVisionCombo->setCurrentIndex(1); // 1.0x
 
     applyParameters();
 }
@@ -428,40 +743,11 @@ void SidePanel::updateStatistics(int preyCount, int predatorCount, int generatio
     m_preyToPredatorRatioLabel->setText(QString::number(ratio, 'f', 2));
 
     m_currentGeneration = generation;
-
-    // Aktualizuj historię ewolucji co 50 pokoleń
-    if (generation % 50 == 0) {
-        float avgSpeed = (avgPreySpeed + avgPredatorSpeed) / 2.0f;
-        float avgSize = (avgPreySize + avgPredatorSize) / 2.0f;
-
-        m_avgSpeedHistory.append(avgSpeed);
-        m_avgSizeHistory.append(avgSize);
-        m_avgVisionHistory.append(avgSpeed * 10.0f); // Przykładowe dane
-
-        // Ogranicz historię
-        if (m_avgSpeedHistory.size() > 20) {
-            m_avgSpeedHistory.removeFirst();
-            m_avgSizeHistory.removeFirst();
-            m_avgVisionHistory.removeFirst();
-        }
-
-        // Aktualizuj tabelę
-        m_evolutionTable->insertRow(0);
-        m_evolutionTable->setItem(0, 0, new QTableWidgetItem(QString::number(generation)));
-        m_evolutionTable->setItem(0, 1, new QTableWidgetItem(QString::number(avgSpeed, 'f', 2)));
-        m_evolutionTable->setItem(0, 2, new QTableWidgetItem(QString::number(avgSize, 'f', 2)));
-        m_evolutionTable->setItem(0, 3, new QTableWidgetItem(QString::number(avgSpeed * 10.0f, 'f', 2)));
-
-        // Ogranicz tabelę do 10 wierszy
-        if (m_evolutionTable->rowCount() > 10) {
-            m_evolutionTable->removeRow(10);
-        }
-    }
 }
+
 
 void SidePanel::updateCharts(const QVector<int> &preyHistory, const QVector<int> &predatorHistory)
 {
-    // Aktualizuj wykres populacji
     m_preySeries->clear();
     m_predatorSeries->clear();
 
@@ -472,72 +758,22 @@ void SidePanel::updateCharts(const QVector<int> &preyHistory, const QVector<int>
         }
     }
 
-    // Aktualizuj wykres ewolucji
-    m_speedSeries->clear();
-    m_sizeSeries->clear();
-    m_visionSeries->clear();
-
-    for (int i = 0; i < m_avgSpeedHistory.size(); ++i) {
-        int generation = m_currentGeneration - (m_avgSpeedHistory.size() - i - 1) * 50;
-        m_speedSeries->append(generation, m_avgSpeedHistory[i]);
-        m_sizeSeries->append(generation, m_avgSizeHistory[i]);
-        m_visionSeries->append(generation, m_avgVisionHistory[i]);
-    }
-
-    // POPRAWIAMY OSTRZEŻENIA - używamy zmiennej tymczasowej
-    QList<QAbstractAxis*> axesList;
-
-    // Dla osi Y
-    axesList = m_chart->axes(Qt::Vertical);
+    QList<QAbstractAxis*> axesList = m_chart->axes(Qt::Vertical);
     if (!axesList.isEmpty()) {
         QValueAxis *axisY = qobject_cast<QValueAxis*>(axesList.first());
         if (axisY) {
             int maxPopulation = 0;
-            for (int count : preyHistory) {
-                maxPopulation = qMax(maxPopulation, count);
-            }
-            for (int count : predatorHistory) {
-                maxPopulation = qMax(maxPopulation, count);
-            }
+            for (int count : preyHistory) maxPopulation = qMax(maxPopulation, count);
+            for (int count : predatorHistory) maxPopulation = qMax(maxPopulation, count);
             axisY->setRange(0, qMax(10, maxPopulation + 10));
         }
     }
 
-    // Dla osi X
     axesList = m_chart->axes(Qt::Horizontal);
     if (!axesList.isEmpty()) {
         QValueAxis *axisX = qobject_cast<QValueAxis*>(axesList.first());
         if (axisX) {
             axisX->setRange(0, qMax(1, preyHistory.size()));
-        }
-    }
-
-    // Dla wykresu ewolucji - os Y
-    axesList = m_evolutionChart->axes(Qt::Vertical);
-    if (!axesList.isEmpty()) {
-        QValueAxis *evoAxisY = qobject_cast<QValueAxis*>(axesList.first());
-        if (evoAxisY) {
-            float maxTrait = 0;
-            // Używamy const reference dla uniknięcia ostrzeżeń
-            const QVector<float>& speedHistory = m_avgSpeedHistory;
-            const QVector<float>& sizeHistory = m_avgSizeHistory;
-            const QVector<float>& visionHistory = m_avgVisionHistory;
-
-            for (float speed : speedHistory) maxTrait = qMax(maxTrait, speed);
-            for (float size : sizeHistory) maxTrait = qMax(maxTrait, size);
-            for (float vision : visionHistory) maxTrait = qMax(maxTrait, vision);
-
-            evoAxisY->setRange(0, qMax(1.0f, maxTrait + 1.0f));
-        }
-    }
-
-    // Dla wykresu ewolucji - os X
-    axesList = m_evolutionChart->axes(Qt::Horizontal);
-    if (!axesList.isEmpty()) {
-        QValueAxis *evoAxisX = qobject_cast<QValueAxis*>(axesList.first());
-        if (evoAxisX) {
-            int maxGen = m_currentGeneration;
-            evoAxisX->setRange(qMax(0, maxGen - 1000), qMax(maxGen, 1));
         }
     }
 }

@@ -3,66 +3,71 @@
 #include <QStatusBar>
 #include <QAction>
 #include <QMenu>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    setWindowTitle("Symulacja Ekosystemu: Drapieżnik-Ofiara z Ewolucją");
+    setWindowTitle("Symulacja Ekosystemu: Drapieznik-Ofiara z Ewolucja");
     setGeometry(100, 100, 1400, 800);
 
-    // Główne okno symulacji
     m_simulationWidget = new SimulationWidget(this);
     setCentralWidget(m_simulationWidget);
 
-    // Panel boczny
     m_sidePanel = new SidePanel(this);
     m_dockWidget = new QDockWidget("Panel Kontrolny", this);
     m_dockWidget->setWidget(m_sidePanel);
     m_dockWidget->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
     addDockWidget(Qt::RightDockWidgetArea, m_dockWidget);
 
-    // Menu
     QMenu *fileMenu = menuBar()->addMenu("Plik");
-    fileMenu->addAction("Nowa symulacja", this, [this]() { m_simulationWidget->resetSimulation(); });
+    fileMenu->addAction("Nowa symulacja", this, [this]() {
+        m_sidePanel->resetCharts();
+        m_simulationWidget->resetSimulation();
+    });
     fileMenu->addSeparator();
     QAction *exitAction = fileMenu->addAction("Zamknij");
     connect(exitAction, &QAction::triggered, this, &QMainWindow::close);
 
     QMenu *viewMenu = menuBar()->addMenu("Widok");
     viewMenu->addAction(m_dockWidget->toggleViewAction());
-    viewMenu->addSeparator();
-    viewMenu->addAction("Zoom +", this, [this]() { /* Można dodać */ });
-    viewMenu->addAction("Zoom -", this, [this]() { /* Można dodać */ });
-    viewMenu->addAction("Resetuj widok", this, [this]() { /* Można dodać */ });
 
     QMenu *simulationMenu = menuBar()->addMenu("Symulacja");
-    simulationMenu->addAction("Start", this, [this]() { m_simulationWidget->startSimulation(); });
-    simulationMenu->addAction("Pauza", this, [this]() { m_simulationWidget->pauseSimulation(); });
-    simulationMenu->addAction("Reset", this, [this]() { m_simulationWidget->resetSimulation(); });
+    simulationMenu->addAction("Start", this, [this]() {
+        m_simulationWidget->startSimulation();
+    });
+    simulationMenu->addAction("Pauza", this, [this]() {
+        m_simulationWidget->pauseSimulation();
+    });
+    simulationMenu->addAction("Reset", this, [this]() {
+        m_sidePanel->resetCharts();
+        m_simulationWidget->resetSimulation();
+    });
     simulationMenu->addSeparator();
-    simulationMenu->addAction("Dodaj 10 ofiar", this, [this]() { m_simulationWidget->addPrey(10); });
-    simulationMenu->addAction("Dodaj 3 drapieżniki", this, [this]() { m_simulationWidget->addPredator(3); });
+    simulationMenu->addAction("Dodaj 10 ofiar", this, [this]() {
+        m_simulationWidget->addPrey(10);
+    });
+    simulationMenu->addAction("Dodaj 3 drapiezniki", this, [this]() {
+        m_simulationWidget->addPredator(3);
+    });
 
     QMenu *helpMenu = menuBar()->addMenu("Pomoc");
     helpMenu->addAction("O programie", this, []() {
         QMessageBox::about(nullptr, "O programie",
-                           "Symulacja ekosystemu drapieżnik-ofiara z ewolucją\n\n"
-                           "Funkcje:\n"
-                           "- Realistyczna AI zwierząt\n"
-                           "- System głodu i pragnienia\n"
-                           "- Woda i roślinność\n"
-                           "- Ewolucja cech\n"
-                           "- Statystyki i wykresy\n"
-                           "- Poruszalna kamera\n\n"
+                           "Symulacja ekosystemu drapieznik-ofiara z ewolucja\n\n"
                            "Sterowanie:\n"
                            "- LPM: przesuwanie kamery\n"
-                           "- Kółko myszy: przybliżanie/oddalanie\n"
-                           "- Przyciski: kontrola symulacji");
+                           "- Kolko myszy: przyblizanie/oddalanie");
     });
 
-    // Połączenia sygnałów
     connect(m_sidePanel, &SidePanel::simulationParametersChanged,
             this, &MainWindow::handleParametersChanged);
+
+    connect(m_sidePanel, &SidePanel::restartSimulationRequested,
+            this, [this]() {
+
+            });
+
     connect(m_sidePanel, &SidePanel::addPreyRequested,
             m_simulationWidget, &SimulationWidget::addPrey);
     connect(m_sidePanel, &SidePanel::addPredatorRequested,
@@ -73,23 +78,32 @@ MainWindow::MainWindow(QWidget *parent)
             m_simulationWidget, &SimulationWidget::addBush);
     connect(m_sidePanel, &SidePanel::addWaterRequested,
             m_simulationWidget, &SimulationWidget::addWater);
+    connect(m_simulationWidget, &SimulationWidget::evolutionDataUpdated,
+            m_sidePanel, &SidePanel::updateEvolutionCharts);
 
     connect(m_simulationWidget, &SimulationWidget::statisticsUpdated,
             this, &MainWindow::handleStatisticsUpdated);
     connect(m_simulationWidget, &SimulationWidget::historyUpdated,
             this, &MainWindow::handleHistoryUpdated);
 
-    statusBar()->showMessage("Gotowy do symulacji. Użyj myszy do przesuwania i zoomowania.");
+    statusBar()->showMessage("Gotowy do symulacji. Uzyj myszy do przesuwania i zoomowania.");
 }
 
-void MainWindow::handleParametersChanged(float preyReproduction, float predatorReproduction,
-                                         float foodRegeneration, float energyConsumption,
-                                         float mutationRate, int initialPrey, int initialPredators)
+void MainWindow::handleParametersChanged(
+    float foodRegenMult, int bushFoodLimit,
+    float predatorEnergyMult, float preyEnergyMult,
+    int initialPrey, int initialPredators,
+    float predatorVisionMult, float preyVisionMult)
 {
-    m_simulationWidget->setSimulationParameters(preyReproduction, predatorReproduction,
-                                                foodRegeneration, energyConsumption,
-                                                mutationRate, initialPrey, initialPredators);
-    statusBar()->showMessage("Parametry zaktualizowane");
+    m_sidePanel->resetCharts();
+
+    m_simulationWidget->applyAndRestartSimulation(
+        foodRegenMult, bushFoodLimit,
+        predatorEnergyMult, preyEnergyMult,
+        initialPrey, initialPredators,
+        predatorVisionMult, preyVisionMult
+        );
+    statusBar()->showMessage("Symulacja zrestartowana z nowymi parametrami");
 }
 
 void MainWindow::handleStatisticsUpdated(int preyCount, int predatorCount, int generation,
@@ -102,8 +116,7 @@ void MainWindow::handleStatisticsUpdated(int preyCount, int predatorCount, int g
                                   avgPreySize, avgPredatorSize,
                                   births, deaths);
 
-    // Aktualizuj status bar
-    statusBar()->showMessage(QString("Tick: %1 | Ofiary: %2 | Drapieżniki: %3 | Urodzenia: %4 | Zgony: %5")
+    statusBar()->showMessage(QString("Tick: %1 | Ofiary: %2 | Drapiezniki: %3 | Urodzenia: %4 | Zgony: %5")
                                  .arg(generation).arg(preyCount).arg(predatorCount).arg(births).arg(deaths));
 }
 
